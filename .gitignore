@@ -8,11 +8,28 @@ __pycache__/
 # Project cache
 cache/
 
-# Environment/secrets
+# Environment / secrets
 .env
+*.env
 
 # VS Code settings
 .vscode/
 
 # Temporary files
 *.tmp
+
+# Raw / downloaded datasets
+data/
+
+# Large satellite/raster files
+*.tif
+*.tiff
+*.jp2
+*.img
+
+# ML model files
+*.pkl
+*.joblib
+
+# Do NOT ignore output CSV files
+# output/satellite/*.csv

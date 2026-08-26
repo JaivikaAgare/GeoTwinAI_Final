@@ -31,5 +31,22 @@ data/
 *.pkl
 *.joblib
 
-# Do NOT ignore output CSV files
-# output/satellite/*.csv
+# ==========================================
+# Large Generated Spatial CSV Files
+# ==========================================
+
+# Large spatial output CSVs
+output/satellite/*_Spatial.csv
+output/processed/*_Spatial_Clean.csv
+
+# Large LULC output files
+output/satellite/*_LULC.csv
+output/processed/*_LULC_Clean.csv
+
+# ==========================================
+# Keep small summary / report CSV files
+# ==========================================
+# Do NOT ignore:
+# output/satellite/*_Summary.csv
+# output/processed/*_Summary_Clean.csv
+# output/processed/Data_Cleaning_Report.csv

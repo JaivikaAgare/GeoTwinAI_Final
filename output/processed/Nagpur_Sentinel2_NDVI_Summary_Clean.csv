@@ -1,0 +1,2 @@
+﻿Region,Satellite,Product,Scene_Date,Cloud_Cover_Percent,B02_Mean,B03_Mean,B04_Mean,B08_Mean,NDVI_Mean,NDVI_Min,NDVI_Max,Vegetation_Percentage,Spatial_Records
+Nagpur,Sentinel-2,Sentinel-2 L2A,2026-05-12,0.0,0.187763,0.216102,0.244512,0.324148,0.139262,-0.249108,0.584951,3.293316,61640

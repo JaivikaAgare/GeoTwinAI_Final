@@ -1,2 +1,2 @@
 ﻿Region,Date,Total_Thermal_Cells,Minimum_Temperature_C,Maximum_Temperature_C,Mean_Temperature_C,Median_Temperature_C,Normal_Cells,Warm_Cells,Hot_Cells,Very_Hot_Cells,Hot_VeryHot_Percentage,Cloud_Cover_Percent,Satellite,Product,Thermal_Band,Source,Scale,Offset
-Nagpur,2026-06-28,646373,-20.0,53.0,29.87,36.81,213508,63764,172078,197023,57.1,19.84,Landsat 8/9,Landsat Collection 2 Level-2,lwir11,Microsoft Planetary Computer,0.003418,149.0
+Nagpur,2026-06-28,597011,0.0,53.0,32.97,37.56,164146,63764,172078,197023,61.82,19.84,Landsat 8/9,Landsat Collection 2 Level-2,lwir11,Microsoft Planetary Computer,0.003418,149.0

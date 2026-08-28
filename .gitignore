@@ -50,3 +50,6 @@ output/processed/*_LULC_Clean.csv
 # output/satellite/*_Summary.csv
 # output/processed/*_Summary_Clean.csv
 # output/processed/Data_Cleaning_Report.csv
+# Large dated/generated copies
+output/processed/*_Spatial_Clean_*.csv
+output/processed/*_LULC_Clean_*.csv

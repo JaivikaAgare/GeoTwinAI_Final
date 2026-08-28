@@ -7,11 +7,23 @@
 # Microsoft Planetary Computer
 #
 # THERMAL ASSET:
-# lwir11 = Surface Temperature Band
+# lwir11
+#
+# FEATURES:
+# - Automatically searches up to today's date
+# - Automatically selects latest available scene
+# - Uses Nagpur BBOX
+# - Reads thermal data safely using raster window
+# - Converts DN -> Kelvin -> Celsius
+# - Creates spatial CSV
+# - Creates summary CSV
+# - Creates heatmap PNG
+# - CSV + PNG use SAME selected scene/date
+# - No Google Earth Engine
 # ================================================================
 
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -21,22 +33,18 @@ import pystac_client
 import planetary_computer
 
 import rasterio
-from rasterio.windows import from_bounds
+from rasterio.windows import from_bounds, Window
 from rasterio.warp import transform_bounds, transform
 from rasterio.transform import xy
 
 
 # ================================================================
-# PROJECT
+# 1. PROJECT PATHS
 # ================================================================
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 
-OUTPUT_DIR = (
-    PROJECT_DIR
-    / "output"
-    / "satellite"
-)
+OUTPUT_DIR = PROJECT_DIR / "output" / "satellite"
 
 OUTPUT_DIR.mkdir(
     parents=True,
@@ -45,27 +53,18 @@ OUTPUT_DIR.mkdir(
 
 
 # ================================================================
-# OUTPUT FILES
+# 2. OUTPUT FILES
 # ================================================================
 
-SPATIAL_CSV = (
-    OUTPUT_DIR /
-    "Nagpur_Heatmap_Spatial.csv"
-)
+SPATIAL_CSV = OUTPUT_DIR / "Nagpur_Heatmap_Spatial.csv"
 
-SUMMARY_CSV = (
-    OUTPUT_DIR /
-    "Nagpur_Heatmap_Summary.csv"
-)
+SUMMARY_CSV = OUTPUT_DIR / "Nagpur_Heatmap_Summary.csv"
 
-PNG_FILE = (
-    OUTPUT_DIR /
-    "Nagpur_Heatmap.png"
-)
+PNG_FILE = OUTPUT_DIR / "Nagpur_Heatmap.png"
 
 
 # ================================================================
-# NAGPUR BOUNDING BOX
+# 3. NAGPUR BOUNDING BOX
 # ================================================================
 
 MIN_LON = 78.95
@@ -74,24 +73,33 @@ MIN_LAT = 21.05
 MAX_LON = 79.20
 MAX_LAT = 21.25
 
+BBOX = [
+    MIN_LON,
+    MIN_LAT,
+    MAX_LON,
+    MAX_LAT
+]
+
 
 # ================================================================
-# SEARCH SETTINGS
+# 4. SEARCH SETTINGS
 # ================================================================
 
 COLLECTION = "landsat-c2-l2"
 
-START_DATE = "2025-01-01"
+START_DATE = "2025-01-01T00:00:00Z"
 
-END_DATE = datetime.now().strftime(
-    "%Y-%m-%d"
+END_DATE = datetime.now(
+    timezone.utc
+).strftime(
+    "%Y-%m-%dT%H:%M:%SZ"
 )
 
-MAX_CLOUD = 40
+MAX_CLOUD = 40.0
 
 
 # ================================================================
-# HEADER
+# 5. HEADER
 # ================================================================
 
 print()
@@ -110,6 +118,18 @@ print("Output:")
 print(OUTPUT_DIR)
 
 print()
+print("Search Start Date:")
+print(START_DATE)
+
+print()
+print("Search End Date:")
+print(END_DATE)
+
+print()
+print("Maximum Cloud Cover:")
+print(MAX_CLOUD, "%")
+
+print()
 print("Nagpur BBOX:")
 print(
     MIN_LON,
@@ -120,13 +140,13 @@ print(
 
 
 # ================================================================
-# CONNECT
+# 6. CONNECT TO PLANETARY COMPUTER
 # ================================================================
 
 print()
-print(
-    "Connecting to Microsoft Planetary Computer..."
-)
+print("=" * 70)
+print("CONNECTING TO PLANETARY COMPUTER")
+print("=" * 70)
 
 try:
 
@@ -141,19 +161,19 @@ except Exception as e:
         f"\nPlanetary Computer connection failed:\n{e}"
     )
 
-print(
-    "Connection successful."
-)
+
+print()
+print("Connection successful.")
 
 
 # ================================================================
-# SEARCH LANDSAT
+# 7. SEARCH LANDSAT SCENES
 # ================================================================
 
 print()
-print(
-    "Searching Landsat thermal scenes..."
-)
+print("=" * 70)
+print("SEARCHING LANDSAT THERMAL SCENES")
+print("=" * 70)
 
 try:
 
@@ -163,12 +183,7 @@ try:
             COLLECTION
         ],
 
-        bbox=[
-            MIN_LON,
-            MIN_LAT,
-            MAX_LON,
-            MAX_LAT
-        ],
+        bbox=BBOX,
 
         datetime=(
             f"{START_DATE}/"
@@ -208,17 +223,15 @@ if not items:
 
 
 # ================================================================
-# FIND LWIR11
+# 8. KEEP ONLY SCENES WITH LWIR11
 # ================================================================
 
 print()
-print(
-    "Searching for Landsat Surface Temperature asset..."
-)
-
+print("=" * 70)
+print("CHECKING THERMAL ASSET")
+print("=" * 70)
 
 thermal_items = []
-
 
 for item in items:
 
@@ -229,6 +242,7 @@ for item in items:
         )
 
 
+print()
 print(
     "Scenes with lwir11:",
     len(thermal_items)
@@ -238,125 +252,178 @@ print(
 if not thermal_items:
 
     raise SystemExit(
-        "\nNo lwir11 Surface Temperature asset found."
+        "\nNo lwir11 thermal asset found."
     )
 
 
 # ================================================================
-# SORT
+# 9. CLOUD COVER FUNCTION
 # ================================================================
 
-thermal_items.sort(
-    key=lambda item: item.datetime
+def get_cloud_cover(item):
+
+    value = item.properties.get(
+        "eo:cloud_cover",
+        999
+    )
+
+    try:
+
+        return float(value)
+
+    except Exception:
+
+        return 999.0
+
+
+# ================================================================
+# 10. SORT NEWEST FIRST
+# ================================================================
+
+thermal_items = sorted(
+
+    thermal_items,
+
+    key=lambda item: (
+        item.datetime
+        if item.datetime is not None
+        else datetime.min.replace(
+            tzinfo=timezone.utc
+        )
+    ),
+
+    reverse=True
 )
 
 
 # ================================================================
-# SHOW LATEST SCENES
+# 11. SHOW LATEST 15 SCENES
 # ================================================================
 
 print()
-print(
-    "Latest Landsat thermal scenes:"
-)
+print("=" * 70)
+print("LATEST AVAILABLE LANDSAT THERMAL SCENES")
+print("=" * 70)
 
+for index, item in enumerate(
+    thermal_items[:15],
+    start=1
+):
 
-for item in thermal_items[-10:]:
+    if item.datetime:
 
-    cloud = item.properties.get(
-        "eo:cloud_cover",
-        np.nan
+        date_text = item.datetime.strftime(
+            "%Y-%m-%d"
+        )
+
+    else:
+
+        date_text = "Unknown"
+
+    cloud = get_cloud_cover(
+        item
     )
 
     print(
-        item.datetime.strftime(
-            "%Y-%m-%d"
-        ),
-        "| Cloud:",
-        round(
-            float(cloud),
-            2
-        ),
-        "%",
-        "|",
-        item.id
+        f"{index:02d}. "
+        f"{date_text} | "
+        f"Cloud: {cloud:.2f}% | "
+        f"{item.id}"
     )
 
 
 # ================================================================
-# SELECT LATEST
+# 12. SELECT LATEST SCENE
 # ================================================================
 
-selected_item = thermal_items[-1]
+selected_item = thermal_items[0]
 
-selected_date = (
-    selected_item.datetime.date()
+
+if selected_item.datetime is None:
+
+    raise SystemExit(
+        "\nSelected scene has no acquisition date."
+    )
+
+
+selected_date = selected_item.datetime.strftime(
+    "%Y-%m-%d"
 )
 
-cloud_cover = selected_item.properties.get(
-    "eo:cloud_cover",
-    np.nan
+cloud_cover = get_cloud_cover(
+    selected_item
 )
+
+scene_id = selected_item.id
 
 
 # ================================================================
-# ASSET
+# 13. SELECTED SCENE
 # ================================================================
-
-thermal_asset = (
-    selected_item.assets[
-        "lwir11"
-    ]
-)
-
 
 print()
 print("=" * 70)
-print(
-    "                 SELECTED LANDSAT SCENE"
-)
+print("                 SELECTED LANDSAT SCENE")
 print("=" * 70)
 
 print()
-print(
-    "Date:",
-    selected_date
-)
+print("Date:")
+print(selected_date)
 
+print()
+print("Cloud cover:")
 print(
-    "Cloud cover:",
     round(
-        float(cloud_cover),
+        cloud_cover,
         2
     ),
     "%"
 )
 
-print(
-    "Scene:",
-    selected_item.id
-)
+print()
+print("Scene:")
+print(scene_id)
 
+print()
+print("IMPORTANT:")
 print(
-    "Thermal asset: lwir11"
+    "All CSV files and PNG use this SAME scene."
 )
 
 
 # ================================================================
-# READ SCALE/OFFSET FROM STAC
+# 14. THERMAL ASSET
+# ================================================================
+
+thermal_asset = selected_item.assets.get(
+    "lwir11"
+)
+
+if thermal_asset is None:
+
+    raise SystemExit(
+        "\nSelected scene does not contain lwir11."
+    )
+
+
+print()
+print("Thermal asset:")
+print("lwir11")
+
+
+# ================================================================
+# 15. READ SCALE AND OFFSET
 # ================================================================
 
 print()
-print(
-    "Reading thermal scale and offset..."
-)
-
+print("=" * 70)
+print("READING THERMAL SCALE AND OFFSET")
+print("=" * 70)
 
 try:
 
     raster_band_info = (
-        thermal_asset.extra_fields
-        .get(
+        thermal_asset.extra_fields.get(
             "raster:bands",
             []
         )
@@ -385,34 +452,27 @@ if raster_band_info:
 
 else:
 
-    # Landsat Collection 2 Level-2
-    # Surface Temperature standard values
-
     scale = 0.00341802
-
     offset = 149.0
 
 
-print(
-    "Scale:",
-    scale
-)
+print()
+print("Scale:")
+print(scale)
 
-print(
-    "Offset:",
-    offset
-)
+print()
+print("Offset:")
+print(offset)
 
 
 # ================================================================
-# READ THERMAL DATA
+# 16. READ THERMAL RASTER
 # ================================================================
 
 print()
-print(
-    "Opening Landsat thermal asset..."
-)
-
+print("=" * 70)
+print("READING LANDSAT THERMAL DATA")
+print("=" * 70)
 
 try:
 
@@ -420,6 +480,7 @@ try:
         thermal_asset.href
     ) as src:
 
+        print()
         print(
             "Raster CRS:",
             src.crs
@@ -438,32 +499,26 @@ try:
                 "Thermal raster CRS is missing."
             )
 
-
         # --------------------------------------------------------
-        # Convert Nagpur geographic BBOX
-        # to raster CRS
+        # TRANSFORM NAGPUR BBOX TO RASTER CRS
         # --------------------------------------------------------
 
-        left, bottom, right, top = (
-            transform_bounds(
+        left, bottom, right, top = transform_bounds(
 
-                "EPSG:4326",
+            "EPSG:4326",
 
-                src.crs,
+            src.crs,
 
-                MIN_LON,
-                MIN_LAT,
-                MAX_LON,
-                MAX_LAT,
+            MIN_LON,
+            MIN_LAT,
+            MAX_LON,
+            MAX_LAT,
 
-                densify_pts=21
-
-            )
+            densify_pts=21
         )
 
-
         # --------------------------------------------------------
-        # Create raster window
+        # CREATE WINDOW
         # --------------------------------------------------------
 
         window = from_bounds(
@@ -474,9 +529,7 @@ try:
             top,
 
             transform=src.transform
-
         )
-
 
         window = (
             window
@@ -484,35 +537,59 @@ try:
             .round_lengths()
         )
 
+        # --------------------------------------------------------
+        # KEEP WINDOW INSIDE RASTER
+        # --------------------------------------------------------
+
+        full_window = Window(
+            0,
+            0,
+            src.width,
+            src.height
+        )
+
+        window = window.intersection(
+            full_window
+        )
+
+        if (
+            window.width <= 0
+            or
+            window.height <= 0
+        ):
+
+            raise RuntimeError(
+                "Nagpur BBOX does not overlap Landsat raster."
+            )
 
         print()
         print(
-            "Reading Nagpur thermal window..."
+            "Reading Nagpur thermal window:"
         )
 
+        print(
+            int(window.width),
+            "x",
+            int(window.height)
+        )
+
+        # --------------------------------------------------------
+        # READ DATA
+        # --------------------------------------------------------
 
         raw_data = src.read(
-
             1,
-
             window=window,
-
             masked=True
-
         )
 
-
-        output_transform = (
-            src.window_transform(
-                window
-            )
+        output_transform = src.window_transform(
+            window
         )
-
 
         output_crs = src.crs
 
         nodata_value = src.nodata
-
 
 except Exception as e:
 
@@ -522,21 +599,18 @@ except Exception as e:
 
 
 # ================================================================
-# RAW DATA
+# 17. RAW DATA -> FLOAT
 # ================================================================
 
-raw_data = raw_data.astype(
+raw_values = raw_data.astype(
     "float32"
-)
-
-
-raw_values = raw_data.filled(
+).filled(
     np.nan
 )
 
 
 # ================================================================
-# REMOVE FILL VALUE
+# 18. REMOVE NODATA
 # ================================================================
 
 if nodata_value is not None:
@@ -552,7 +626,7 @@ raw_values[
 
 
 # ================================================================
-# CONVERT DN -> KELVIN
+# 19. DN -> KELVIN
 # ================================================================
 
 print()
@@ -560,39 +634,37 @@ print(
     "Converting thermal DN to Kelvin..."
 )
 
-
 temperature_kelvin = (
-
     raw_values
     *
     scale
     +
     offset
-
 )
 
 
 # ================================================================
-# KELVIN -> CELSIUS
+# 20. KELVIN -> CELSIUS
 # ================================================================
 
 print(
     "Converting Kelvin to Celsius..."
 )
 
-
 temperature_celsius = (
-
     temperature_kelvin
     -
     273.15
-
 )
 
 
 # ================================================================
-# VALID TEMPERATURES
+# 21. VALID TEMPERATURE MASK
 # ================================================================
+
+# Remove unrealistic temperatures.
+# This also prevents invalid nodata values
+# from entering the statistics.
 
 valid = (
 
@@ -605,7 +677,7 @@ valid = (
     (
         temperature_celsius
         >=
-        -20
+        0
     )
 
     &
@@ -615,7 +687,6 @@ valid = (
         <=
         70
     )
-
 )
 
 
@@ -639,14 +710,12 @@ if valid_count == 0:
 
 
 # ================================================================
-# STATISTICS
+# 22. TEMPERATURE STATISTICS
 # ================================================================
 
-values = (
-    temperature_celsius[
-        valid
-    ]
-)
+values = temperature_celsius[
+    valid
+]
 
 
 minimum_temperature = float(
@@ -667,10 +736,11 @@ median_temperature = float(
 
 
 print()
-print(
-    "Temperature statistics:"
-)
+print("=" * 70)
+print("TEMPERATURE STATISTICS")
+print("=" * 70)
 
+print()
 print(
     "Minimum:",
     round(
@@ -709,38 +779,32 @@ print(
 
 
 # ================================================================
-# SPATIAL RECORDS
+# 23. CREATE SPATIAL RECORDS
 # ================================================================
 
 print()
-print(
-    "Creating spatial thermal records..."
-)
+print("=" * 70)
+print("CREATING SPATIAL THERMAL RECORDS")
+print("=" * 70)
 
 
-height, width = (
-    temperature_celsius.shape
-)
+height, width = temperature_celsius.shape
 
 
 records = []
 
 
-for row in range(
-    height
-):
+# ================================================================
+# 24. SPATIAL RECORD LOOP
+# ================================================================
 
-    for col in range(
-        width
-    ):
+for row in range(height):
 
-        if not valid[
-            row,
-            col
-        ]:
+    for col in range(width):
+
+        if not valid[row, col]:
 
             continue
-
 
         temperature = float(
             temperature_celsius[
@@ -749,35 +813,25 @@ for row in range(
             ]
         )
 
-
         # --------------------------------------------------------
         # HEAT CLASS
         # --------------------------------------------------------
 
         if temperature >= 40:
 
-            heat_class = (
-                "Very Hot"
-            )
+            heat_class = "Very Hot"
 
         elif temperature >= 35:
 
-            heat_class = (
-                "Hot"
-            )
+            heat_class = "Hot"
 
         elif temperature >= 30:
 
-            heat_class = (
-                "Warm"
-            )
+            heat_class = "Warm"
 
         else:
 
-            heat_class = (
-                "Normal"
-            )
-
+            heat_class = "Normal"
 
         # --------------------------------------------------------
         # PIXEL CENTER
@@ -792,12 +846,10 @@ for row in range(
             col,
 
             offset="center"
-
         )
 
-
         # --------------------------------------------------------
-        # CONVERT TO LAT/LON
+        # PROJECTED -> LAT/LON
         # --------------------------------------------------------
 
         longitude, latitude = transform(
@@ -808,9 +860,7 @@ for row in range(
 
             [x],
             [y]
-
         )
-
 
         records.append({
 
@@ -839,13 +889,11 @@ for row in range(
                 heat_class,
 
             "Date":
-                str(
-                    selected_date
-                ),
+                selected_date,
 
             "Cloud_Cover_Percent":
                 round(
-                    float(cloud_cover),
+                    cloud_cover,
                     2
                 ),
 
@@ -868,7 +916,7 @@ for row in range(
 
 
 # ================================================================
-# DATAFRAME
+# 25. DATAFRAME
 # ================================================================
 
 df = pd.DataFrame(
@@ -891,15 +939,12 @@ print(
 
 
 # ================================================================
-# SAVE SPATIAL CSV
+# 26. SAVE SPATIAL CSV
 # ================================================================
 
 df.to_csv(
-
     SPATIAL_CSV,
-
     index=False
-
 )
 
 
@@ -914,7 +959,7 @@ print(
 
 
 # ================================================================
-# HEAT COUNTS
+# 27. HEAT CLASS COUNTS
 # ================================================================
 
 normal_count = int(
@@ -925,7 +970,6 @@ normal_count = int(
     ).sum()
 )
 
-
 warm_count = int(
     (
         df["Heat_Class"]
@@ -934,7 +978,6 @@ warm_count = int(
     ).sum()
 )
 
-
 hot_count = int(
     (
         df["Heat_Class"]
@@ -942,7 +985,6 @@ hot_count = int(
         "Hot"
     ).sum()
 )
-
 
 very_hot_count = int(
     (
@@ -953,10 +995,12 @@ very_hot_count = int(
 )
 
 
-total_cells = len(
-    df
-)
+total_cells = len(df)
 
+
+# ================================================================
+# 28. HOT + VERY HOT PERCENTAGE
+# ================================================================
 
 hot_percentage = (
 
@@ -973,12 +1017,11 @@ hot_percentage = (
     *
 
     100
-
 )
 
 
 # ================================================================
-# SUMMARY
+# 29. SUMMARY DATASET
 # ================================================================
 
 summary_df = pd.DataFrame([{
@@ -987,9 +1030,7 @@ summary_df = pd.DataFrame([{
         "Nagpur",
 
     "Date":
-        str(
-            selected_date
-        ),
+        selected_date,
 
     "Total_Thermal_Cells":
         total_cells,
@@ -1038,7 +1079,7 @@ summary_df = pd.DataFrame([{
 
     "Cloud_Cover_Percent":
         round(
-            float(cloud_cover),
+            cloud_cover,
             2
         ),
 
@@ -1063,12 +1104,13 @@ summary_df = pd.DataFrame([{
 }])
 
 
+# ================================================================
+# 30. SAVE SUMMARY
+# ================================================================
+
 summary_df.to_csv(
-
     SUMMARY_CSV,
-
     index=False
-
 )
 
 
@@ -1083,13 +1125,13 @@ print(
 
 
 # ================================================================
-# HEATMAP PNG
+# 31. CREATE HEATMAP PNG
 # ================================================================
 
 print()
-print(
-    "Creating heatmap PNG..."
-)
+print("=" * 70)
+print("CREATING HEATMAP PNG")
+print("=" * 70)
 
 
 plt.figure(
@@ -1112,7 +1154,6 @@ scatter = plt.scatter(
     s=8,
 
     alpha=0.85
-
 )
 
 
@@ -1121,7 +1162,6 @@ plt.colorbar(
     scatter,
 
     label="Land Surface Temperature (°C)"
-
 )
 
 
@@ -1138,9 +1178,9 @@ plt.title(
 
     "Nagpur Urban Heatmap\n"
 
-    f"Landsat Surface Temperature | "
-    f"{selected_date}"
+    "Landsat Surface Temperature | "
 
+    f"{selected_date}"
 )
 
 
@@ -1159,49 +1199,56 @@ plt.savefig(
     dpi=200,
 
     bbox_inches="tight"
-
 )
 
 
 plt.close()
 
 
+print()
+print(
+    "Heatmap PNG created:"
+)
+
+print(
+    PNG_FILE
+)
+
+
 # ================================================================
-# FINAL
+# 32. FINAL REPORT
 # ================================================================
 
 print()
 print("=" * 70)
-print(
-    "             HEATMAP ANALYSIS COMPLETE"
-)
+print("             HEATMAP ANALYSIS COMPLETE")
 print("=" * 70)
 
 print()
-print(
-    "Selected date:",
-    selected_date
-)
+print("Selected date:")
+print(selected_date)
 
+print()
+print("Cloud cover:")
 print(
-    "Cloud cover:",
     round(
-        float(cloud_cover),
+        cloud_cover,
         2
     ),
     "%"
 )
 
 print()
-print(
-    "Thermal pixels:",
-    valid_count
-)
+print("Satellite:")
+print("Landsat 8/9")
 
-print(
-    "Spatial records:",
-    total_cells
-)
+print()
+print("Thermal pixels:")
+print(valid_count)
+
+print()
+print("Spatial records:")
+print(total_cells)
 
 print()
 print(
@@ -1231,7 +1278,18 @@ print(
     "°C"
 )
 
+print(
+    "Median temperature:",
+    round(
+        median_temperature,
+        2
+    ),
+    "°C"
+)
+
 print()
+print("HEAT CLASS COUNTS")
+
 print(
     "Normal:",
     normal_count
@@ -1254,42 +1312,88 @@ print(
 
 print()
 print(
-    "Spatial CSV:"
+    "Hot + Very Hot Percentage:",
+    round(
+        hot_percentage,
+        2
+    ),
+    "%"
 )
 
+
+# ================================================================
+# 33. FILES CREATED
+# ================================================================
+
+print()
+print("=" * 70)
+print("FILES CREATED")
+print("=" * 70)
+
+print()
+print("1. Spatial CSV:")
 print(
     SPATIAL_CSV
 )
 
 print()
-print(
-    "Summary CSV:"
-)
-
+print("2. Summary CSV:")
 print(
     SUMMARY_CSV
 )
 
 print()
-print(
-    "Heatmap PNG:"
-)
-
+print("3. Heatmap PNG:")
 print(
     PNG_FILE
 )
 
+
+# ================================================================
+# 34. IMPORTANT
+# ================================================================
+
 print()
+print("=" * 70)
+print("IMPORTANT")
+print("=" * 70)
+
+print()
+
 print(
-    "Source:"
+    "CSV and PNG date:",
+    selected_date
 )
 
 print(
-    "Landsat 8/9 Collection 2 Level-2"
+    "All outputs use the same selected Landsat scene."
 )
 
 print(
-    "Microsoft Planetary Computer"
+    "Running this script again searches up to today's date."
 )
 
+print(
+    "If a newer scene becomes available, "
+    "the latest scene will automatically be selected."
+)
+
+print()
+
+print(
+    "Google Earth Engine: NOT USED"
+)
+
+print(
+    "Source: Microsoft Planetary Computer"
+)
+
+
+# ================================================================
+# 35. SUCCESS
+# ================================================================
+
+print()
+print("=" * 70)
+print("                    SUCCESS")
 print("=" * 70)

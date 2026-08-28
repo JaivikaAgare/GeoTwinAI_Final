@@ -1,0 +1,6 @@
+﻿Region,Building_Count,Road_Count,School_Count,Hospital_Count,Park_Count,WaterBody_Count,Total_Infrastructure,Healthcare_Index,Education_Index,Green_Space_Index,Water_Availability_Index,Building_Road_Ratio,Building_School_Ratio,Building_Hospital_Ratio,Building_Density_Index,Road_Density_Index
+Central,19240,25272,51,304,71,18,44956,100.0,100.0,100.0,100.0,0.76,377.25,63.29,100.0,84.82
+North,1364,20542,1,23,3,1,21934,7.57,1.96,4.23,5.56,0.07,1364.0,59.3,7.09,68.94
+South,15484,19213,15,48,35,3,34798,15.79,29.41,49.3,16.67,0.81,1032.27,322.58,80.48,64.48
+East,7634,29796,3,21,11,3,37468,6.91,5.88,15.49,16.67,0.26,2544.67,363.52,39.68,100.0
+West,2330,15743,5,16,22,4,18120,5.26,9.8,30.99,22.22,0.15,466.0,145.62,12.11,52.84

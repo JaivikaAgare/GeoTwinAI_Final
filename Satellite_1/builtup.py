@@ -1,68 +1,80 @@
-# ============================================================
-# GeoTwinAI - Nagpur Built-up Area Analysis
-# Source: Microsoft Planetary Computer
-# Dataset: Sentinel-2 Level-2A
-# Method: NDBI + NDVI built-up detection
-# ============================================================
-
-from pathlib import Path
+import os
 import warnings
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
+import rasterio
+from rasterio.windows import from_bounds
+from rasterio.enums import Resampling
+from rasterio.warp import transform_bounds
 import pystac_client
 import planetary_computer
-import rasterio
-from rasterio.warp import reproject, Resampling
 
 warnings.filterwarnings("ignore")
 
-
 # ============================================================
+# GEOTWINAI - NAGPUR BUILT-UP AREA
+# SENTINEL-2 L2A + MICROSOFT PLANETARY COMPUTER
+# WINDOW-BASED READING VERSION
+# ============================================================
+
+# -----------------------------
 # PROJECT PATHS
-# ============================================================
+# -----------------------------
 
-PROJECT_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = os.path.dirname(
+    os.path.dirname(
+        os.path.abspath(__file__)
+    )
+)
 
-OUTPUT_DIR = PROJECT_DIR / "output" / "satellite"
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR = os.path.join(
+    BASE_DIR,
+    "output",
+    "satellite"
+)
 
-CSV_FILE = OUTPUT_DIR / "Nagpur_BuiltUp_Spatial.csv"
-SUMMARY_FILE = OUTPUT_DIR / "Nagpur_BuiltUp_Summary.csv"
-PNG_FILE = OUTPUT_DIR / "Nagpur_BuiltUp.png"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# -----------------------------
+# NAGPUR BBOX
+# -----------------------------
 
-# ============================================================
-# NAGPUR APPROXIMATE AOI
-# No GeoJSON / boundary file required
-# ============================================================
+MIN_LON = 78.95
+MIN_LAT = 21.05
+MAX_LON = 79.20
+MAX_LAT = 21.25
 
-# [min_lon, min_lat, max_lon, max_lat]
-NAGPUR_BBOX = [
-    78.95,
-    21.05,
-    79.20,
-    21.25
+BBOX = [
+    MIN_LON,
+    MIN_LAT,
+    MAX_LON,
+    MAX_LAT
 ]
 
-
-# ============================================================
+# -----------------------------
 # SETTINGS
-# ============================================================
+# -----------------------------
 
 COLLECTION = "sentinel-2-l2a"
 
-MAX_CLOUD = 20
+# Built-up detection:
+# NDBI = (SWIR - NIR) / (SWIR + NIR)
+#
+# Built-up pixels:
+# NDBI > NDBI_THRESHOLD
+# AND
+# NDBI > NDVI
+#
+NDBI_THRESHOLD = 0.00
 
 # Spatial aggregation
-# 10 m Sentinel-2 pixels -> approximately 100 m cells
-GRID_SIZE = 10
+GRID_SIZE_DEGREES = 0.001
 
-# Built-up detection thresholds
-NDBI_THRESHOLD = 0.05
-NDVI_MAX_FOR_BUILTUP = 0.40
+# Maximum cloud cover preferred
+MAX_CLOUD = 30.0
 
 
 # ============================================================
@@ -73,15 +85,20 @@ print()
 print("=" * 70)
 print("             NAGPUR BUILT-UP AREA ANALYSIS")
 print("             SENTINEL-2 / PLANETARY COMPUTER")
+print("             WINDOW-BASED SAFE READING")
 print("=" * 70)
 
 print()
 print("Project:")
-print(PROJECT_DIR)
+print(BASE_DIR)
 
 print()
 print("Output:")
 print(OUTPUT_DIR)
+
+print()
+print("Nagpur BBOX:")
+print(MIN_LON, MIN_LAT, MAX_LON, MAX_LAT)
 
 
 # ============================================================
@@ -106,58 +123,107 @@ print("Connection successful.")
 print()
 print("Searching Sentinel-2 L2A scenes...")
 
+now = datetime.now(timezone.utc)
+
 search = catalog.search(
     collections=[COLLECTION],
-    bbox=NAGPUR_BBOX,
-    datetime="2025-01-01/2026-12-31",
-    query={
-        "eo:cloud_cover": {
-            "lt": MAX_CLOUD
-        }
-    }
+    bbox=BBOX,
+    datetime=f"2024-01-01T00:00:00Z/{now.isoformat()}",
 )
 
-items = list(search.items())
+items = list(search.item_collection())
 
 print()
 print("Scenes found:", len(items))
 
-if not items:
+
+# ============================================================
+# FIND ITEMS WITH REQUIRED ASSETS
+# ============================================================
+
+valid_items = []
+
+for item in items:
+
+    assets = item.assets
+
+    # Different STAC naming possibilities
+    red_ok = (
+        "B04" in assets
+        or "red" in assets
+    )
+
+    nir_ok = (
+        "B08" in assets
+        or "nir08" in assets
+    )
+
+    swir_ok = (
+        "B11" in assets
+        or "swir16" in assets
+    )
+
+    if red_ok and nir_ok and swir_ok:
+        valid_items.append(item)
+
+
+print("Scenes with required bands:", len(valid_items))
+
+
+if not valid_items:
     raise RuntimeError(
-        "No Sentinel-2 scenes found for the Nagpur area."
+        "No Sentinel-2 scenes containing Red, NIR and SWIR assets were found."
     )
 
 
 # ============================================================
-# SORT BY CLOUD COVER THEN DATE
+# CLOUD COVER
 # ============================================================
 
-def cloud_value(item):
-    value = item.properties.get("eo:cloud_cover", 999)
+def get_cloud(item):
+
+    value = item.properties.get(
+        "eo:cloud_cover",
+        999
+    )
 
     try:
         return float(value)
     except Exception:
-        return 999
+        return 999.0
 
 
-items = sorted(
-    items,
-    key=lambda x: (
-        cloud_value(x),
-        -(x.datetime.timestamp() if x.datetime else 0)
-    )
+# ============================================================
+# PREFER LATEST AVAILABLE SCENE
+# ============================================================
+
+low_cloud_items = [
+    item
+    for item in valid_items
+    if get_cloud(item) <= MAX_CLOUD
+]
+
+if low_cloud_items:
+    candidate_items = low_cloud_items
+else:
+    candidate_items = valid_items
+
+
+candidate_items = sorted(
+    candidate_items,
+    key=lambda x: x.datetime or datetime.min.replace(
+        tzinfo=timezone.utc
+    ),
+    reverse=True
 )
 
 
-# ============================================================
-# SHOW BEST SCENES
-# ============================================================
-
 print()
-print("Best available scenes:")
+print("=" * 70)
+print("                 BEST AVAILABLE SCENES")
+print("=" * 70)
 
-for item in items[:10]:
+for item in candidate_items[:10]:
 
     date_text = (
         item.datetime.strftime("%Y-%m-%d")
@@ -165,20 +231,18 @@ for item in items[:10]:
         else "Unknown"
     )
 
-    cloud = cloud_value(item)
-
     print(
         f"{date_text} | "
-        f"Cloud: {cloud:.2f}% | "
+        f"Cloud: {get_cloud(item):.2f}% | "
         f"{item.id}"
     )
 
 
 # ============================================================
-# SELECT BEST SCENE
+# SELECT LATEST
 # ============================================================
 
-item = items[0]
+item = candidate_items[0]
 
 scene_date = (
     item.datetime.strftime("%Y-%m-%d")
@@ -186,7 +250,8 @@ scene_date = (
     else "Unknown"
 )
 
-scene_cloud = cloud_value(item)
+cloud = get_cloud(item)
+
 
 print()
 print("=" * 70)
@@ -195,182 +260,247 @@ print("=" * 70)
 
 print()
 print("Date:", scene_date)
-print("Cloud cover:", scene_cloud, "%")
+print("Cloud cover:", cloud, "%")
 print("Scene:", item.id)
 
 
 # ============================================================
-# CHECK REQUIRED BANDS
+# ASSET FINDER
 # ============================================================
 
-required_bands = ["B04", "B08", "B11"]
+def get_asset(item, possible_names):
 
-for band in required_bands:
+    for name in possible_names:
 
-    if band not in item.assets:
+        if name in item.assets:
+            return item.assets[name]
 
-        raise RuntimeError(
-            f"Required Sentinel-2 asset {band} "
-            f"was not found in the selected scene."
-        )
+    raise KeyError(
+        f"Could not find any of these assets: {possible_names}"
+    )
+
+
+red_asset = get_asset(
+    item,
+    ["B04", "red"]
+)
+
+nir_asset = get_asset(
+    item,
+    ["B08", "nir08"]
+)
+
+swir_asset = get_asset(
+    item,
+    ["B11", "swir16"]
+)
+
 
 print()
 print("Required bands available:")
-print("B04 - Red")
-print("B08 - Near Infrared")
-print("B11 - SWIR")
+
+print("Red :", red_asset.title or red_asset.key)
+print("NIR :", nir_asset.title or nir_asset.key)
+print("SWIR:", swir_asset.title or swir_asset.key)
 
 
 # ============================================================
-# READ BAND
+# SAFE WINDOW READING
 # ============================================================
 
-def read_band(asset):
+def read_bbox_window(
+    asset,
+    bbox,
+    target_shape=None
+):
 
-    href = asset.href
+    """
+    Read ONLY the Nagpur bounding box.
 
-    with rasterio.open(href) as src:
+    This avoids:
+        src.read(1)
 
-        data = src.read(1).astype("float32")
+    which attempts to read the complete raster.
+    """
 
-        transform = src.transform
-        crs = src.crs
+    with rasterio.open(asset.href) as src:
 
-        nodata = src.nodata
+        print()
+        print("Source CRS:", src.crs)
+        print("Source size:", src.width, "x", src.height)
 
-        profile = src.profile.copy()
+        # Transform WGS84 bbox into source CRS
+        left, bottom, right, top = transform_bounds(
+            "EPSG:4326",
+            src.crs,
+            bbox[0],
+            bbox[1],
+            bbox[2],
+            bbox[3],
+            densify_pts=21
+        )
 
-    return data, transform, crs, nodata, profile
+        window = from_bounds(
+            left,
+            bottom,
+            right,
+            top,
+            transform=src.transform
+        )
+
+        # Keep window inside raster
+        window = window.round_offsets().round_lengths()
+
+        window = window.intersection(
+            rasterio.windows.Window(
+                0,
+                0,
+                src.width,
+                src.height
+            )
+        )
+
+        if window.width <= 0 or window.height <= 0:
+            raise RuntimeError(
+                "Nagpur BBOX does not overlap raster."
+            )
+
+        print(
+            "Reading window:",
+            int(window.width),
+            "x",
+            int(window.height)
+        )
+
+        if target_shape is None:
+
+            data = src.read(
+                1,
+                window=window,
+                masked=True
+            )
+
+            transform = src.window_transform(window)
+
+        else:
+
+            data = src.read(
+                1,
+                window=window,
+                out_shape=target_shape,
+                resampling=Resampling.bilinear,
+                masked=True
+            )
+
+            # New transform after resizing
+            transform = src.window_transform(window)
+
+            transform = transform * transform.scale(
+                window.width / target_shape[1],
+                window.height / target_shape[0]
+            )
+
+        data = data.astype("float32")
+
+        return data, transform, src.crs
 
 
 # ============================================================
-# READ B04
+# READ RED
 # ============================================================
 
 print()
-print("Reading B04...")
+print("=" * 70)
+print("READING RED BAND")
+print("=" * 70)
 
-red, red_transform, red_crs, red_nodata, red_profile = read_band(
-    item.assets["B04"]
+red, red_transform, red_crs = read_bbox_window(
+    red_asset,
+    BBOX
 )
 
-print("B04 shape:", red.shape)
-
-
-# ============================================================
-# READ B08
-# ============================================================
-
-print()
-print("Reading B08...")
-
-nir, nir_transform, nir_crs, nir_nodata, nir_profile = read_band(
-    item.assets["B08"]
+print(
+    "Red shape:",
+    red.shape
 )
 
-print("B08 shape:", nir.shape)
-
 
 # ============================================================
-# CHECK GRID
-# ============================================================
-
-if red.shape != nir.shape:
-
-    print()
-    print("B04 and B08 grids differ.")
-    print("Reprojecting B08 to B04 grid...")
-
-    nir_resampled = np.zeros_like(red, dtype="float32")
-
-    reproject(
-        source=nir,
-        destination=nir_resampled,
-        src_transform=nir_transform,
-        src_crs=nir_crs,
-        dst_transform=red_transform,
-        dst_crs=red_crs,
-        resampling=Resampling.bilinear
-    )
-
-    nir = nir_resampled
-
-
-# ============================================================
-# READ B11
+# READ NIR
 # ============================================================
 
 print()
-print("Reading B11...")
+print("=" * 70)
+print("READING NIR BAND")
+print("=" * 70)
 
-swir, swir_transform, swir_crs, swir_nodata, swir_profile = read_band(
-    item.assets["B11"]
+nir, nir_transform, nir_crs = read_bbox_window(
+    nir_asset,
+    BBOX,
+    target_shape=red.shape
 )
 
-print("B11 original shape:", swir.shape)
+print(
+    "NIR shape:",
+    nir.shape
+)
 
 
 # ============================================================
-# IMPORTANT FIX
-# ============================================================
-# B11 is 20 m.
-# B04/B08 are 10 m.
-#
-# Instead of multiplying an Affine transform by a tuple,
-# properly reproject B11 onto the B04 10 m grid.
+# READ SWIR
 # ============================================================
 
 print()
-print("Resampling B11 from 20 m to 10 m grid...")
+print("=" * 70)
+print("READING SWIR BAND")
+print("=" * 70)
 
-swir_10m = np.zeros(
-    red.shape,
+swir, swir_transform, swir_crs = read_bbox_window(
+    swir_asset,
+    BBOX,
+    target_shape=red.shape
+)
+
+print(
+    "SWIR shape:",
+    swir.shape
+)
+
+
+# ============================================================
+# CONVERT MASKED ARRAYS
+# ============================================================
+
+red_data = np.asarray(
+    red.filled(np.nan),
     dtype="float32"
 )
 
-reproject(
-    source=swir,
-    destination=swir_10m,
-    src_transform=swir_transform,
-    src_crs=swir_crs,
-    dst_transform=red_transform,
-    dst_crs=red_crs,
-    resampling=Resampling.bilinear
+nir_data = np.asarray(
+    nir.filled(np.nan),
+    dtype="float32"
 )
 
-swir = swir_10m
-
-print("B11 resampled shape:", swir.shape)
+swir_data = np.asarray(
+    swir.filled(np.nan),
+    dtype="float32"
+)
 
 
 # ============================================================
-# SENTINEL-2 REFLECTANCE SCALE
+# SCALE REFLECTANCE
 # ============================================================
 
-# Sentinel-2 L2A reflectance is normally scaled by 10000.
+# Sentinel-2 L2A reflectance values are normally scaled.
 #
-# If the values are already <= 1, don't divide again.
+# Dividing by 10000 does not change NDVI/NDBI because
+# the same scale factor exists in numerator and denominator.
+#
+# We keep values as float32 for faster processing.
 
-def convert_reflectance(array):
-
-    array = array.astype("float32")
-
-    valid = array[np.isfinite(array)]
-
-    if valid.size == 0:
-        return array
-
-    maximum = np.nanpercentile(valid, 99)
-
-    if maximum > 2:
-        array = array / 10000.0
-
-    return array
-
-
-red = convert_reflectance(red)
-nir = convert_reflectance(nir)
-swir = convert_reflectance(swir)
+red_data = red_data / 10000.0
+nir_data = nir_data / 10000.0
+swir_data = swir_data / 10000.0
 
 
 # ============================================================
@@ -378,17 +508,17 @@ swir = convert_reflectance(swir)
 # ============================================================
 
 valid = (
-    np.isfinite(red)
+    np.isfinite(red_data)
     &
-    np.isfinite(nir)
+    np.isfinite(nir_data)
     &
-    np.isfinite(swir)
+    np.isfinite(swir_data)
     &
-    (red > 0)
+    (red_data >= 0)
     &
-    (nir > 0)
+    (nir_data >= 0)
     &
-    (swir > 0)
+    (swir_data >= 0)
 )
 
 print()
@@ -396,9 +526,8 @@ print("Valid pixels:", int(valid.sum()))
 
 
 if valid.sum() == 0:
-
     raise RuntimeError(
-        "No valid Sentinel-2 pixels were found."
+        "No valid Sentinel-2 pixels found inside Nagpur BBOX."
     )
 
 
@@ -409,25 +538,26 @@ if valid.sum() == 0:
 print()
 print("Calculating NDVI...")
 
+ndvi_den = nir_data + red_data
+
 ndvi = np.full(
-    red.shape,
+    red_data.shape,
     np.nan,
     dtype="float32"
 )
 
-ndvi_denominator = nir + red
-
-safe_ndvi = (
+ndvi_mask = (
     valid
     &
-    (np.abs(ndvi_denominator) > 1e-8)
+    (np.abs(ndvi_den) > 1e-8)
 )
 
-ndvi[safe_ndvi] = (
-    (nir[safe_ndvi] - red[safe_ndvi])
+ndvi[ndvi_mask] = (
+    (nir_data[ndvi_mask] - red_data[ndvi_mask])
     /
-    ndvi_denominator[safe_ndvi]
+    ndvi_den[ndvi_mask]
 )
+
 
 # ============================================================
 # NDBI
@@ -435,126 +565,136 @@ ndvi[safe_ndvi] = (
 
 print("Calculating NDBI...")
 
+ndbi_den = swir_data + nir_data
+
 ndbi = np.full(
-    red.shape,
+    red_data.shape,
     np.nan,
     dtype="float32"
 )
 
-ndbi_denominator = swir + nir
-
-safe_ndbi = (
+ndbi_mask = (
     valid
     &
-    (np.abs(ndbi_denominator) > 1e-8)
+    (np.abs(ndbi_den) > 1e-8)
 )
 
-ndbi[safe_ndbi] = (
-    (swir[safe_ndbi] - nir[safe_ndbi])
+ndbi[ndbi_mask] = (
+    (swir_data[ndbi_mask] - nir_data[ndbi_mask])
     /
-    ndbi_denominator[safe_ndbi]
+    ndbi_den[ndbi_mask]
 )
 
 
 # ============================================================
-# BUILT-UP CLASSIFICATION
+# BUILT-UP DETECTION
 # ============================================================
 
 print()
-print("Classifying built-up pixels...")
+print("Detecting built-up pixels...")
 
 builtup_mask = (
-    valid
+    np.isfinite(ndbi)
+    &
+    np.isfinite(ndvi)
     &
     (ndbi > NDBI_THRESHOLD)
     &
-    (ndvi < NDVI_MAX_FOR_BUILTUP)
+    (ndbi > ndvi)
+)
+
+builtup_pixels = int(
+    builtup_mask.sum()
+)
+
+valid_pixels = int(
+    np.isfinite(ndbi).sum()
+)
+
+print(
+    "Built-up pixels:",
+    builtup_pixels
+)
+
+print(
+    "Valid NDBI pixels:",
+    valid_pixels
 )
 
 
-builtup_percentage = (
-    builtup_mask.sum()
-    /
-    valid.sum()
-) * 100
+if valid_pixels > 0:
 
+    builtup_percentage = (
+        builtup_pixels
+        /
+        valid_pixels
+        *
+        100
+    )
 
-print()
-print("Built-up pixels:", int(builtup_mask.sum()))
+else:
+
+    builtup_percentage = 0
+
 
 print(
     "Built-up percentage:",
-    round(float(builtup_percentage), 2),
+    round(builtup_percentage, 2),
     "%"
 )
+
+
+# ============================================================
+# CREATE APPROXIMATE 100m GRID
+# ============================================================
+
+print()
+print("Aggregating pixels into approximately 100m cells...")
+
+
+height, width = ndbi.shape
+
+# Approximately 10 pixels for Sentinel-2 10m data
+BLOCK = 10
+
+
+records = []
+
+pixel_transform = red_transform
 
 
 # ============================================================
 # SPATIAL AGGREGATION
 # ============================================================
 
-print()
-print("Aggregating pixels into approximately 100 m cells...")
+for row_start in range(
+    0,
+    height,
+    BLOCK
+):
 
-
-height, width = red.shape
-
-grid_rows = height // GRID_SIZE
-grid_cols = width // GRID_SIZE
-
-
-print()
-print("Spatial grid:")
-print(
-    grid_cols,
-    "x",
-    grid_rows
-)
-
-
-records = []
-
-
-# ============================================================
-# COORDINATE TRANSFORMATION
-# ============================================================
-
-def pixel_to_lonlat(row, col):
-
-    x, y = rasterio.transform.xy(
-        red_transform,
-        row,
-        col,
-        offset="center"
+    row_end = min(
+        row_start + BLOCK,
+        height
     )
 
-    return float(x), float(y)
+    for col_start in range(
+        0,
+        width,
+        BLOCK
+    ):
 
+        col_end = min(
+            col_start + BLOCK,
+            width
+        )
 
-# ============================================================
-# CREATE SPATIAL RECORDS
-# ============================================================
-
-print()
-print("Creating spatial CSV records...")
-
-
-for r in range(grid_rows):
-
-    row_start = r * GRID_SIZE
-    row_end = row_start + GRID_SIZE
-
-    for c in range(grid_cols):
-
-        col_start = c * GRID_SIZE
-        col_end = col_start + GRID_SIZE
-
-        ndvi_block = ndvi[
+        ndbi_block = ndbi[
             row_start:row_end,
             col_start:col_end
         ]
 
-        ndbi_block = ndbi[
+        ndvi_block = ndvi[
             row_start:row_end,
             col_start:col_end
         ]
@@ -564,190 +704,287 @@ for r in range(grid_rows):
             col_start:col_end
         ]
 
-        valid_block = valid[
-            row_start:row_end,
-            col_start:col_end
-        ]
-
-        if not valid_block.any():
-            continue
-
-        valid_ndvi = ndvi_block[
-            np.isfinite(ndvi_block)
-        ]
-
-        valid_ndbi = ndbi_block[
-            np.isfinite(ndbi_block)
-        ]
-
-        if valid_ndvi.size == 0:
-            continue
-
-        if valid_ndbi.size == 0:
-            continue
-
-        built_pixels = int(
-            built_block.sum()
+        valid_block = np.isfinite(
+            ndbi_block
         )
 
-        total_pixels = int(
+        count = int(
             valid_block.sum()
         )
 
-        built_percent = (
-            built_pixels /
-            total_pixels
-        ) * 100
+        if count == 0:
+            continue
 
-        center_row = (
-            row_start + row_end - 1
-        ) // 2
-
-        center_col = (
-            col_start + col_end - 1
-        ) // 2
-
-        lon, lat = pixel_to_lonlat(
-            center_row,
-            center_col
+        mean_ndbi = float(
+            np.nanmean(ndbi_block)
         )
 
-        records.append({
+        mean_ndvi = float(
+            np.nanmean(ndvi_block)
+        )
 
-            "Region": "Nagpur",
+        built_count = int(
+            built_block.sum()
+        )
 
-            "Latitude": round(lat, 6),
+        fraction = (
+            built_count / count
+        )
 
-            "Longitude": round(lon, 6),
+        # Cell centre
+        center_row = (
+            row_start + row_end
+        ) / 2
 
-            "NDVI_Mean": round(
-                float(np.nanmean(valid_ndvi)),
-                4
-            ),
+        center_col = (
+            col_start + col_end
+        ) / 2
 
-            "NDBI_Mean": round(
-                float(np.nanmean(valid_ndbi)),
-                4
-            ),
+        x, y = rasterio.transform.xy(
+            pixel_transform,
+            center_row,
+            center_col,
+            offset="center"
+        )
 
-            "BuiltUp_Pixels": built_pixels,
+        # Convert projected coordinates back to WGS84
+        from rasterio.warp import transform
 
-            "Valid_Pixels": total_pixels,
+        lon, lat = transform(
+            red_crs,
+            "EPSG:4326",
+            [x],
+            [y]
+        )
 
-            "BuiltUp_Percent": round(
-                float(built_percent),
-                2
-            ),
+        longitude = float(
+            lon[0]
+        )
 
-            "Scene_Date": scene_date,
+        latitude = float(
+            lat[0]
+        )
 
-            "Cloud_Cover_Percent": round(
-                float(scene_cloud),
-                4
-            ),
+        if fraction >= 0.50:
 
-            "Satellite": "Sentinel-2",
+            built_class = "High Built-up"
 
-            "Source": "Microsoft Planetary Computer"
+        elif fraction >= 0.20:
 
-        })
+            built_class = "Moderate Built-up"
+
+        else:
+
+            built_class = "Low Built-up"
+
+
+        records.append(
+            {
+                "Latitude": latitude,
+                "Longitude": longitude,
+                "Mean_NDBI": round(
+                    mean_ndbi,
+                    4
+                ),
+                "Mean_NDVI": round(
+                    mean_ndvi,
+                    4
+                ),
+                "BuiltUp_Pixel_Count": built_count,
+                "Valid_Pixel_Count": count,
+                "BuiltUp_Fraction": round(
+                    fraction,
+                    4
+                ),
+                "BuiltUp_Percent": round(
+                    fraction * 100,
+                    2
+                ),
+                "BuiltUp_Class": built_class,
+                "Scene_Date": scene_date,
+                "Cloud_Cover_Percent": round(
+                    cloud,
+                    2
+                ),
+                "Satellite": "Sentinel-2"
+            }
+        )
 
 
 # ============================================================
 # DATAFRAME
 # ============================================================
 
-df = pd.DataFrame(records)
+df = pd.DataFrame(
+    records
+)
+
+print()
+print(
+    "Spatial records:",
+    len(df)
+)
 
 
 if df.empty:
-
     raise RuntimeError(
-        "No spatial records were created."
+        "No spatial built-up records were generated."
     )
-
-
-print()
-print("Spatial records:", len(df))
 
 
 # ============================================================
 # SAVE SPATIAL CSV
 # ============================================================
 
+spatial_csv = os.path.join(
+    OUTPUT_DIR,
+    "Nagpur_BuiltUp_Spatial.csv"
+)
+
 df.to_csv(
-    CSV_FILE,
+    spatial_csv,
     index=False
 )
+
+print()
+print("Spatial CSV saved:")
+print(spatial_csv)
 
 
 # ============================================================
 # SUMMARY
 # ============================================================
 
-summary = pd.DataFrame([{
+mean_ndbi = float(
+    df["Mean_NDBI"].mean()
+)
 
-    "Region": "Nagpur",
+max_ndbi = float(
+    df["Mean_NDBI"].max()
+)
 
-    "Scene_Date": scene_date,
+min_ndbi = float(
+    df["Mean_NDBI"].min()
+)
 
-    "Cloud_Cover_Percent": round(
-        float(scene_cloud),
-        4
-    ),
+mean_builtup = float(
+    df["BuiltUp_Percent"].mean()
+)
 
-    "Valid_Pixels": int(
-        valid.sum()
-    ),
+high_cells = int(
+    (
+        df["BuiltUp_Class"]
+        ==
+        "High Built-up"
+    ).sum()
+)
 
-    "BuiltUp_Pixels": int(
-        builtup_mask.sum()
-    ),
+moderate_cells = int(
+    (
+        df["BuiltUp_Class"]
+        ==
+        "Moderate Built-up"
+    ).sum()
+)
 
-    "BuiltUp_Percentage": round(
-        float(builtup_percentage),
-        2
-    ),
+low_cells = int(
+    (
+        df["BuiltUp_Class"]
+        ==
+        "Low Built-up"
+    ).sum()
+)
 
-    "Mean_NDVI": round(
-        float(np.nanmean(ndvi)),
-        4
-    ),
 
-    "Mean_NDBI": round(
-        float(np.nanmean(ndbi)),
-        4
-    ),
+summary = pd.DataFrame(
+    [
+        {
+            "Dataset": "Nagpur Built-up Area",
+            "Satellite": "Sentinel-2",
+            "Scene_Date": scene_date,
+            "Cloud_Cover_Percent": round(
+                cloud,
+                2
+            ),
+            "Spatial_Records": len(df),
+            "Valid_Pixels": valid_pixels,
+            "BuiltUp_Pixels": builtup_pixels,
+            "BuiltUp_Percentage": round(
+                builtup_percentage,
+                2
+            ),
+            "Mean_NDBI": round(
+                mean_ndbi,
+                4
+            ),
+            "Minimum_NDBI": round(
+                min_ndbi,
+                4
+            ),
+            "Maximum_NDBI": round(
+                max_ndbi,
+                4
+            ),
+            "Mean_Cell_BuiltUp_Percent": round(
+                mean_builtup,
+                2
+            ),
+            "High_BuiltUp_Cells": high_cells,
+            "Moderate_BuiltUp_Cells": moderate_cells,
+            "Low_BuiltUp_Cells": low_cells
+        }
+    ]
+)
 
-    "Satellite": "Sentinel-2",
 
-    "Source": "Microsoft Planetary Computer"
-
-}])
-
+summary_csv = os.path.join(
+    OUTPUT_DIR,
+    "Nagpur_BuiltUp_Summary.csv"
+)
 
 summary.to_csv(
-    SUMMARY_FILE,
+    summary_csv,
     index=False
 )
 
+print()
+print("Summary CSV saved:")
+print(summary_csv)
+
 
 # ============================================================
-# PNG MAP
+# PNG
 # ============================================================
 
 print()
-print("Creating built-up map...")
+print("Creating Built-up PNG...")
 
 
 plt.figure(
-    figsize=(10, 8)
+    figsize=(12, 8)
 )
 
-plt.imshow(
-    builtup_mask,
-    cmap="gray",
-    interpolation="nearest"
+scatter = plt.scatter(
+    df["Longitude"],
+    df["Latitude"],
+    c=df["BuiltUp_Percent"],
+    s=8,
+    cmap="Reds",
+    vmin=0,
+    vmax=100
+)
+
+plt.colorbar(
+    scatter,
+    label="Built-up Percentage (%)"
+)
+
+plt.xlabel(
+    "Longitude"
+)
+
+plt.ylabel(
+    "Latitude"
 )
 
 plt.title(
@@ -755,53 +992,79 @@ plt.title(
     f"Sentinel-2 | {scene_date}"
 )
 
-plt.xlabel("10 m Grid Column")
-plt.ylabel("10 m Grid Row")
-
 plt.tight_layout()
 
+
+png_path = os.path.join(
+    OUTPUT_DIR,
+    "Nagpur_BuiltUp.png"
+)
+
 plt.savefig(
-    PNG_FILE,
-    dpi=200,
-    bbox_inches="tight"
+    png_path,
+    dpi=150
 )
 
 plt.close()
 
 
 # ============================================================
-# FINAL OUTPUT
+# FINAL REPORT
 # ============================================================
 
 print()
 print("=" * 70)
-print("                  PROCESS COMPLETED")
+print("              BUILT-UP ANALYSIS COMPLETED")
 print("=" * 70)
 
 print()
-print("CSV:")
-print(CSV_FILE)
+print("Satellite:", "Sentinel-2")
+print("Scene date:", scene_date)
+print("Cloud cover:", round(cloud, 2), "%")
 
 print()
-print("SUMMARY:")
-print(SUMMARY_FILE)
+print("Spatial records:", len(df))
 
-print()
-print("PNG:")
-print(PNG_FILE)
-
-print()
-print("Built-up percentage:")
 print(
-    round(float(builtup_percentage), 2),
+    "Built-up pixels:",
+    builtup_pixels
+)
+
+print(
+    "Built-up percentage:",
+    round(
+        builtup_percentage,
+        2
+    ),
     "%"
 )
 
-print()
-print("Source:")
-print("Microsoft Planetary Computer / Sentinel-2 L2A")
+print(
+    "Mean NDBI:",
+    round(
+        mean_ndbi,
+        4
+    )
+)
 
 print()
-print("No Google Earth Engine used.")
-print("No GeoJSON boundary required.")
+print("FILES CREATED")
 print()
+print("1. Spatial CSV:")
+print(spatial_csv)
+
+print()
+print("2. Summary CSV:")
+print(summary_csv)
+
+print()
+print("3. PNG:")
+print(png_path)
+
+print()
+print("Google Earth Engine: NOT USED")
+
+print()
+print("=" * 70)
+print("                    SUCCESS")
+print("=" * 70)

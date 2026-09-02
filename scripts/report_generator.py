@@ -1,6 +1,6 @@
 # ============================================================
 # GEOTWINAI
-# PROFESSIONAL REPORT GENERATOR
+# PROFESSIONAL SMART CITY REPORT GENERATOR
 #
 # Project:
 # AI-Powered Digital Twin for Smart Cities
@@ -8,22 +8,43 @@
 # Study Area:
 # Nagpur, Maharashtra
 #
+# Includes:
+# Infrastructure
+# Sentinel-2
+# All Bands
+# NDVI
+# NDBI
+# NDWI
+# LULC
+# Built-up Area
+# Green Cover
+# Flood Risk
+# Heatmap
+# Machine Learning
+# Interactive GIS
+# Power BI
+#
 # Output:
-# output/reports/GeoTwinAI_Nagpur_Professional_Report.pdf
+# output/reports/
+# GeoTwinAI_Nagpur_Professional_Report.pdf
 # ============================================================
 
 import os
+import glob
 import warnings
 
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import (
+    getSampleStyleSheet,
+    ParagraphStyle
+)
 from reportlab.lib.units import mm
+
 from reportlab.platypus import (
     SimpleDocTemplate,
     Paragraph,
@@ -31,14 +52,15 @@ from reportlab.platypus import (
     Table,
     TableStyle,
     PageBreak,
-    Image
+    Image,
+    KeepTogether
 )
 
 warnings.filterwarnings("ignore")
 
 
 # ============================================================
-# 1. PROJECT PATHS
+# 1. PATHS
 # ============================================================
 
 BASE_DIR = os.path.dirname(
@@ -47,7 +69,10 @@ BASE_DIR = os.path.dirname(
     )
 )
 
-OUTPUT_DIR = os.path.join(BASE_DIR, "output")
+OUTPUT_DIR = os.path.join(
+    BASE_DIR,
+    "output"
+)
 
 PROCESSED_DIR = os.path.join(
     OUTPUT_DIR,
@@ -69,8 +94,22 @@ CHART_DIR = os.path.join(
     "report_charts"
 )
 
-os.makedirs(REPORT_DIR, exist_ok=True)
-os.makedirs(CHART_DIR, exist_ok=True)
+MAP_DIR = os.path.join(
+    OUTPUT_DIR,
+    "maps"
+)
+
+
+os.makedirs(
+    REPORT_DIR,
+    exist_ok=True
+)
+
+os.makedirs(
+    CHART_DIR,
+    exist_ok=True
+)
+
 
 REPORT_FILE = os.path.join(
     REPORT_DIR,
@@ -79,7 +118,7 @@ REPORT_FILE = os.path.join(
 
 
 # ============================================================
-# 2. HELPER FUNCTIONS
+# 2. HELPERS
 # ============================================================
 
 def find_file(folder, names):
@@ -89,10 +128,51 @@ def find_file(folder, names):
 
     for name in names:
 
-        path = os.path.join(folder, name)
+        path = os.path.join(
+            folder,
+            name
+        )
 
         if os.path.exists(path):
             return path
+
+    return None
+
+
+def find_keyword_file(
+    keywords
+):
+
+    folders = [
+        PROCESSED_DIR,
+        SATELLITE_DIR,
+        OUTPUT_DIR
+    ]
+
+    for folder in folders:
+
+        if not os.path.exists(folder):
+            continue
+
+        files = glob.glob(
+            os.path.join(
+                folder,
+                "*.csv"
+            )
+        )
+
+        for file in files:
+
+            filename = os.path.basename(
+                file
+            ).lower()
+
+            if all(
+                keyword.lower() in filename
+                for keyword in keywords
+            ):
+
+                return file
 
     return None
 
@@ -103,28 +183,24 @@ def safe_read_csv(path):
         return None
 
     try:
-        return pd.read_csv(path)
+
+        return pd.read_csv(
+            path
+        )
 
     except Exception as e:
 
-        print("Could not read:")
-        print(path)
-        print("Reason:", e)
+        print(
+            "Could not read:",
+            path
+        )
+
+        print(
+            "Reason:",
+            e
+        )
 
         return None
-
-
-def fmt(value, digits=2):
-
-    try:
-
-        if pd.isna(value):
-            return "N/A"
-
-        return f"{float(value):.{digits}f}"
-
-    except Exception:
-        return "N/A"
 
 
 def count_rows(df):
@@ -135,7 +211,27 @@ def count_rows(df):
     return len(df)
 
 
-def safe_mean(df, column):
+def fmt(
+    value,
+    digits=2
+):
+
+    try:
+
+        if pd.isna(value):
+            return "N/A"
+
+        return f"{float(value):.{digits}f}"
+
+    except Exception:
+
+        return "N/A"
+
+
+def safe_mean(
+    df,
+    column
+):
 
     if df is None:
         return None
@@ -156,7 +252,108 @@ def safe_mean(df, column):
         return values.mean()
 
     except Exception:
+
         return None
+
+
+def find_images(
+    keywords
+):
+
+    results = []
+
+    folders = [
+        OUTPUT_DIR,
+        SATELLITE_DIR,
+        CHART_DIR,
+        MAP_DIR
+    ]
+
+    extensions = [
+        "*.png",
+        "*.jpg",
+        "*.jpeg"
+    ]
+
+    for folder in folders:
+
+        if not os.path.exists(folder):
+            continue
+
+        for extension in extensions:
+
+            files = glob.glob(
+                os.path.join(
+                    folder,
+                    extension
+                )
+            )
+
+            for file in files:
+
+                filename = os.path.basename(
+                    file
+                ).lower()
+
+                if any(
+                    keyword.lower()
+                    in filename
+                    for keyword in keywords
+                ):
+
+                    results.append(
+                        file
+                    )
+
+    return results
+
+
+def make_chart(
+    categories,
+    values,
+    title,
+    filename
+):
+
+    path = os.path.join(
+        CHART_DIR,
+        filename
+    )
+
+    plt.figure(
+        figsize=(10, 5.5)
+    )
+
+    plt.bar(
+        categories,
+        values
+    )
+
+    plt.title(
+        title,
+        fontsize=14
+    )
+
+    plt.ylabel(
+        "Number of Records"
+    )
+
+    plt.xticks(
+        rotation=30,
+        ha="right"
+    )
+
+    plt.tight_layout()
+
+    plt.savefig(
+        path,
+        dpi=200,
+        bbox_inches="tight"
+    )
+
+    plt.close()
+
+    return path
 
 
 # ============================================================
@@ -165,33 +362,26 @@ def safe_mean(df, column):
 
 print()
 print("=" * 70)
-print("        GEOTWINAI PROFESSIONAL REPORT GENERATOR")
+print("       GEOTWINAI PROFESSIONAL REPORT GENERATOR")
 print("=" * 70)
 print()
 
-print("Project:")
-print(BASE_DIR)
-
-print()
-print("Output:")
-print(REPORT_FILE)
+print(
+    "Project:",
+    BASE_DIR
+)
 
 
 # ============================================================
-# 4. LOCATE INFRASTRUCTURE DATASETS
+# 4. LOCATE INFRASTRUCTURE
 # ============================================================
-
-print()
-print("Locating datasets...")
-
 
 building_file = find_file(
     PROCESSED_DIR,
     [
         "Nagpur_Building_Clean.csv",
         "Nagpur_Buildings_Clean.csv",
-        "Nagpur_Building_clean.csv",
-        "Nagpur_building_clean.csv"
+        "Nagpur_Building_clean.csv"
     ]
 )
 
@@ -201,8 +391,7 @@ hospital_file = find_file(
     [
         "Nagpur_Hospital_Clean.csv",
         "Nagpur_Hospitals_Clean.csv",
-        "Nagpur_Hospital_clean.csv",
-        "Nagpur_hospital_clean.csv"
+        "Nagpur_Hospital_clean.csv"
     ]
 )
 
@@ -212,8 +401,7 @@ school_file = find_file(
     [
         "Nagpur_School_Clean.csv",
         "Nagpur_Schools_Clean.csv",
-        "Nagpur_School_clean.csv",
-        "Nagpur_school_clean.csv"
+        "Nagpur_School_clean.csv"
     ]
 )
 
@@ -223,8 +411,7 @@ park_file = find_file(
     [
         "Nagpur_Park_Clean.csv",
         "Nagpur_Parks_Clean.csv",
-        "Nagpur_Park_clean.csv",
-        "Nagpur_park_clean.csv"
+        "Nagpur_Park_clean.csv"
     ]
 )
 
@@ -234,8 +421,7 @@ road_file = find_file(
     [
         "Nagpur_Road_Clean.csv",
         "Nagpur_Roads_Clean.csv",
-        "Nagpur_Road_clean.csv",
-        "Nagpur_road_clean.csv"
+        "Nagpur_Road_clean.csv"
     ]
 )
 
@@ -245,14 +431,13 @@ water_file = find_file(
     [
         "Nagpur_Water_Bodies_Clean.csv",
         "Nagpur_Water_Body_Clean.csv",
-        "Nagpur_Water_Bodies_clean.csv",
-        "Nagpur_water_bodies_clean.csv"
+        "Nagpur_Water_Bodies_clean.csv"
     ]
 )
 
 
 # ============================================================
-# 5. LOCATE SATELLITE DATASETS
+# 5. SATELLITE FILES
 # ============================================================
 
 all_bands_file = find_file(
@@ -272,10 +457,6 @@ all_bands_spatial_file = find_file(
     ]
 )
 
-
-# ============================================================
-# 6. LOCATE SATELLITE INDEX FILES
-# ============================================================
 
 builtup_summary_file = find_file(
     SATELLITE_DIR,
@@ -306,6 +487,20 @@ lulc_summary_file = find_file(
 
 
 # ============================================================
+# 6. NEW FLOOD + HEATMAP DATA
+# ============================================================
+
+flood_file = find_keyword_file(
+    ["flood"]
+)
+
+
+heatmap_file = find_keyword_file(
+    ["heat"]
+)
+
+
+# ============================================================
 # 7. READ DATA
 # ============================================================
 
@@ -313,19 +508,33 @@ print()
 print("Reading datasets...")
 
 
-buildings = safe_read_csv(building_file)
+buildings = safe_read_csv(
+    building_file
+)
 
-hospitals = safe_read_csv(hospital_file)
+hospitals = safe_read_csv(
+    hospital_file
+)
 
-schools = safe_read_csv(school_file)
+schools = safe_read_csv(
+    school_file
+)
 
-parks = safe_read_csv(park_file)
+parks = safe_read_csv(
+    park_file
+)
 
-roads = safe_read_csv(road_file)
+roads = safe_read_csv(
+    road_file
+)
 
-water = safe_read_csv(water_file)
+water = safe_read_csv(
+    water_file
+)
 
-bands_summary = safe_read_csv(all_bands_file)
+bands_summary = safe_read_csv(
+    all_bands_file
+)
 
 bands_spatial = safe_read_csv(
     all_bands_spatial_file
@@ -343,33 +552,50 @@ lulc_summary = safe_read_csv(
     lulc_summary_file
 )
 
+flood_data = safe_read_csv(
+    flood_file
+)
+
+heatmap_data = safe_read_csv(
+    heatmap_file
+)
+
 
 # ============================================================
-# 8. BASIC STATISTICS
+# 8. STATISTICS
 # ============================================================
 
-building_count = count_rows(buildings)
+building_count = count_rows(
+    buildings
+)
 
-hospital_count = count_rows(hospitals)
+hospital_count = count_rows(
+    hospitals
+)
 
-school_count = count_rows(schools)
+school_count = count_rows(
+    schools
+)
 
-park_count = count_rows(parks)
+park_count = count_rows(
+    parks
+)
 
-road_count = count_rows(roads)
+road_count = count_rows(
+    roads
+)
 
-water_count = count_rows(water)
+water_count = count_rows(
+    water
+)
 
+flood_count = count_rows(
+    flood_data
+)
 
-print()
-print("Infrastructure records:")
-
-print("Buildings:", building_count)
-print("Hospitals:", hospital_count)
-print("Schools:", school_count)
-print("Parks:", park_count)
-print("Roads:", road_count)
-print("Water Bodies:", water_count)
+heatmap_count = count_rows(
+    heatmap_data
+)
 
 
 # ============================================================
@@ -399,10 +625,15 @@ if bands_summary is not None:
                 row["Scene_Date"]
             )
 
-        if "Cloud_Cover_Percent" in bands_summary.columns:
+        if (
+            "Cloud_Cover_Percent"
+            in bands_summary.columns
+        ):
 
             cloud_cover = fmt(
-                row["Cloud_Cover_Percent"],
+                row[
+                    "Cloud_Cover_Percent"
+                ],
                 2
             )
 
@@ -428,10 +659,6 @@ if bands_summary is not None:
             )
 
 
-# ============================================================
-# 10. CALCULATE INDICES FROM SPATIAL DATA IF NEEDED
-# ============================================================
-
 if bands_spatial is not None:
 
     if mean_ndvi == "N/A":
@@ -442,7 +669,11 @@ if bands_spatial is not None:
         )
 
         if value is not None:
-            mean_ndvi = fmt(value, 4)
+
+            mean_ndvi = fmt(
+                value,
+                4
+            )
 
 
     if mean_ndbi == "N/A":
@@ -453,7 +684,11 @@ if bands_spatial is not None:
         )
 
         if value is not None:
-            mean_ndbi = fmt(value, 4)
+
+            mean_ndbi = fmt(
+                value,
+                4
+            )
 
 
     if mean_ndwi == "N/A":
@@ -464,15 +699,21 @@ if bands_spatial is not None:
         )
 
         if value is not None:
-            mean_ndwi = fmt(value, 4)
+
+            mean_ndwi = fmt(
+                value,
+                4
+            )
 
 
 # ============================================================
-# 11. INFRASTRUCTURE CHART
+# 10. CREATE INFRASTRUCTURE CHART
 # ============================================================
 
 print()
-print("Creating infrastructure chart...")
+print(
+    "Creating infrastructure chart..."
+)
 
 
 categories = [
@@ -495,47 +736,16 @@ values = [
 ]
 
 
-INFRA_CHART = os.path.join(
-    CHART_DIR,
+INFRA_CHART = make_chart(
+    categories,
+    values,
+    "Nagpur Urban Infrastructure Dataset Summary",
     "infrastructure_summary.png"
 )
 
 
-plt.figure(
-    figsize=(10, 6)
-)
-
-plt.bar(
-    categories,
-    values
-)
-
-plt.title(
-    "Nagpur Infrastructure Dataset Summary"
-)
-
-plt.ylabel(
-    "Number of Records"
-)
-
-plt.xticks(
-    rotation=30,
-    ha="right"
-)
-
-plt.tight_layout()
-
-plt.savefig(
-    INFRA_CHART,
-    dpi=200,
-    bbox_inches="tight"
-)
-
-plt.close()
-
-
 # ============================================================
-# 12. NDVI CHART
+# 11. NDVI CHART
 # ============================================================
 
 NDVI_CHART = None
@@ -550,21 +760,15 @@ if bands_spatial is not None:
             errors="coerce"
         ).dropna()
 
-
         if len(ndvi_values) > 0:
-
-            print(
-                "Creating NDVI distribution chart..."
-            )
 
             NDVI_CHART = os.path.join(
                 CHART_DIR,
                 "ndvi_distribution.png"
             )
 
-
             plt.figure(
-                figsize=(10, 6)
+                figsize=(10, 5.5)
             )
 
             plt.hist(
@@ -596,11 +800,149 @@ if bands_spatial is not None:
 
 
 # ============================================================
-# 13. PDF DOCUMENT
+# 12. FLOOD CHART
+# ============================================================
+
+FLOOD_CHART = None
+
+
+if flood_data is not None:
+
+    numeric_columns = (
+        flood_data
+        .select_dtypes(
+            include="number"
+        )
+        .columns
+        .tolist()
+    )
+
+    if len(numeric_columns) > 0:
+
+        flood_column = numeric_columns[0]
+
+        values = pd.to_numeric(
+            flood_data[
+                flood_column
+            ],
+            errors="coerce"
+        ).dropna()
+
+        if len(values) > 0:
+
+            FLOOD_CHART = os.path.join(
+                CHART_DIR,
+                "flood_risk_distribution.png"
+            )
+
+            plt.figure(
+                figsize=(10, 5.5)
+            )
+
+            plt.hist(
+                values,
+                bins=20
+            )
+
+            plt.title(
+                "Flood Risk Distribution"
+            )
+
+            plt.xlabel(
+                flood_column
+            )
+
+            plt.ylabel(
+                "Records"
+            )
+
+            plt.tight_layout()
+
+            plt.savefig(
+                FLOOD_CHART,
+                dpi=200,
+                bbox_inches="tight"
+            )
+
+            plt.close()
+
+
+# ============================================================
+# 13. HEATMAP CHART
+# ============================================================
+
+HEAT_CHART = None
+
+
+if heatmap_data is not None:
+
+    numeric_columns = (
+        heatmap_data
+        .select_dtypes(
+            include="number"
+        )
+        .columns
+        .tolist()
+    )
+
+    if len(numeric_columns) > 0:
+
+        heat_column = numeric_columns[-1]
+
+        values = pd.to_numeric(
+            heatmap_data[
+                heat_column
+            ],
+            errors="coerce"
+        ).dropna()
+
+        if len(values) > 0:
+
+            HEAT_CHART = os.path.join(
+                CHART_DIR,
+                "heatmap_distribution.png"
+            )
+
+            plt.figure(
+                figsize=(10, 5.5)
+            )
+
+            plt.hist(
+                values,
+                bins=20
+            )
+
+            plt.title(
+                "Urban Heatmap Distribution"
+            )
+
+            plt.xlabel(
+                heat_column
+            )
+
+            plt.ylabel(
+                "Records"
+            )
+
+            plt.tight_layout()
+
+            plt.savefig(
+                HEAT_CHART,
+                dpi=200,
+                bbox_inches="tight"
+            )
+
+            plt.close()
+
+
+# ============================================================
+# 14. PDF DOCUMENT
 # ============================================================
 
 print()
-print("Building professional PDF...")
+print(
+    "Building professional PDF..."
+)
 
 
 doc = SimpleDocTemplate(
@@ -620,7 +962,7 @@ doc = SimpleDocTemplate(
 
 
 # ============================================================
-# 14. STYLES
+# 15. STYLES
 # ============================================================
 
 styles = getSampleStyleSheet()
@@ -674,6 +1016,22 @@ heading_style = ParagraphStyle(
 )
 
 
+subheading_style = ParagraphStyle(
+
+    "SubHeading",
+
+    parent=styles["Heading2"],
+
+    fontSize=13,
+
+    leading=17,
+
+    spaceBefore=8,
+
+    spaceAfter=7
+)
+
+
 body_style = ParagraphStyle(
 
     "BodyCustom",
@@ -714,13 +1072,13 @@ story = []
 
 
 # ============================================================
-# 15. COVER PAGE
+# 16. COVER PAGE
 # ============================================================
 
 story.append(
     Spacer(
         1,
-        35 * mm
+        30 * mm
     )
 )
 
@@ -744,7 +1102,7 @@ story.append(
 story.append(
     Spacer(
         1,
-        10 * mm
+        8 * mm
     )
 )
 
@@ -760,7 +1118,7 @@ story.append(
 story.append(
     Spacer(
         1,
-        20 * mm
+        18 * mm
     )
 )
 
@@ -780,7 +1138,7 @@ cover_data = [
 
     [
         Paragraph(
-            "<b>Satellite Dataset</b>",
+            "<b>Satellite</b>",
             body_style
         ),
         Paragraph(
@@ -802,7 +1160,7 @@ cover_data = [
 
     [
         Paragraph(
-            "<b>Analysis Resolution</b>",
+            "<b>Spatial Resolution</b>",
             body_style
         ),
         Paragraph(
@@ -818,6 +1176,17 @@ cover_data = [
         ),
         Paragraph(
             scene_date,
+            body_style
+        )
+    ],
+
+    [
+        Paragraph(
+            "<b>Generated By</b>",
+            body_style
+        ),
+        Paragraph(
+            "GeoTwinAI Automated Report Generator",
             body_style
         )
     ]
@@ -894,17 +1263,20 @@ story.append(
 story.append(
     Spacer(
         1,
-        20 * mm
+        18 * mm
     )
 )
 
 
 story.append(
     Paragraph(
-        "GeoTwinAI integrates geospatial datasets, "
-        "satellite-derived indicators and machine learning "
-        "to support urban planning and smart-city "
-        "decision-making.",
+
+        "GeoTwinAI integrates geospatial infrastructure "
+        "datasets, satellite remote sensing, environmental "
+        "indices, flood analysis, heatmap analysis and "
+        "machine learning to support smart-city planning "
+        "and decision-making.",
+
         center_style
     )
 )
@@ -916,7 +1288,7 @@ story.append(
 
 
 # ============================================================
-# 16. EXECUTIVE SUMMARY
+# 17. EXECUTIVE SUMMARY
 # ============================================================
 
 story.append(
@@ -928,26 +1300,29 @@ story.append(
 
 
 executive_text = f"""
+
 GeoTwinAI is an AI-powered geospatial decision-support
 platform developed for urban planning and smart-city
 analysis in Nagpur, Maharashtra.
 
-The system integrates infrastructure datasets with
-Sentinel-2 satellite observations to provide a spatial
-understanding of the urban environment.
+The platform integrates infrastructure datasets,
+Sentinel-2 satellite observations, environmental indices,
+flood-risk analysis, heatmap analysis and machine-learning
+components.
 
-The selected satellite scene has a recorded cloud cover
+The selected Sentinel-2 scene has a reported cloud cover
 of {cloud_cover}% and a scene date of {scene_date}.
 
-The platform analyses vegetation, built-up areas and
-water-related characteristics using NDVI, NDBI and NDWI.
-
-Infrastructure datasets include buildings, hospitals,
+The environmental analysis includes NDVI, NDBI and NDWI.
+Infrastructure analysis includes buildings, hospitals,
 schools, parks, roads and water bodies.
 
-The final system combines GIS visualization, machine
-learning and Power BI analytics into a unified urban
-planning workflow.
+The platform additionally incorporates flood-risk and
+urban heatmap analysis to support environmental risk
+assessment.
+
+The final workflow connects GIS visualization, machine
+learning, automated data processing and Power BI analytics.
 """
 
 
@@ -960,7 +1335,7 @@ story.append(
 
 
 # ============================================================
-# 17. PROJECT OBJECTIVES
+# 18. PROJECT OBJECTIVES
 # ============================================================
 
 story.append(
@@ -979,9 +1354,13 @@ objectives = [
 
     "Analyse vegetation and environmental conditions.",
 
-    "Identify built-up and water-related characteristics.",
+    "Analyse built-up and water-related characteristics.",
 
     "Map important urban infrastructure.",
+
+    "Analyse flood-risk conditions.",
+
+    "Identify heat-related urban hotspots.",
 
     "Create machine-learning-based urban priority analysis.",
 
@@ -989,7 +1368,9 @@ objectives = [
 
     "Provide analytical dashboards through Power BI.",
 
-    "Support data-driven urban planning decisions."
+    "Support data-driven urban planning decisions.",
+
+    "Create an extensible framework for future data updates."
 
 ]
 
@@ -1005,7 +1386,7 @@ for objective in objectives:
 
 
 # ============================================================
-# 18. DATA SOURCES
+# 19. DATA SOURCES
 # ============================================================
 
 story.append(
@@ -1065,6 +1446,31 @@ data_source_table = Table(
         [
             "Sentinel-2",
             "Satellite and environmental analysis"
+        ],
+
+        [
+            "All Sentinel-2 Bands",
+            "Multi-spectral analysis"
+        ],
+
+        [
+            "NDVI / NDBI / NDWI",
+            "Environmental and urban indicators"
+        ],
+
+        [
+            "LULC",
+            "Land-use and land-cover analysis"
+        ],
+
+        [
+            "Flood Risk",
+            "Flood vulnerability analysis"
+        ],
+
+        [
+            "Heatmap",
+            "Urban hotspot analysis"
         ],
 
         [
@@ -1135,7 +1541,7 @@ story.append(
 
 
 # ============================================================
-# 19. INFRASTRUCTURE STATISTICS
+# 20. INFRASTRUCTURE STATISTICS
 # ============================================================
 
 story.append(
@@ -1248,19 +1654,21 @@ story.append(
 )
 
 
-if os.path.exists(INFRA_CHART):
+if os.path.exists(
+    INFRA_CHART
+):
 
     story.append(
         Image(
             INFRA_CHART,
             width=165 * mm,
-            height=95 * mm
+            height=90 * mm
         )
     )
 
 
 # ============================================================
-# 20. SATELLITE ANALYSIS
+# 21. SATELLITE ANALYSIS
 # ============================================================
 
 story.append(
@@ -1277,6 +1685,7 @@ story.append(
 
 
 satellite_text = f"""
+
 The satellite analysis uses Sentinel-2 Level-2A imagery
 obtained through Microsoft Planetary Computer.
 
@@ -1286,8 +1695,8 @@ cloud cover of {cloud_cover}%.
 A common 10-metre spatial reference grid is used for
 integrated multi-band analysis.
 
-The processed dataset includes B01, B02, B03, B04, B05,
-B06, B07, B08, B8A, B09, B11 and B12.
+The processed Sentinel-2 dataset includes B01, B02, B03,
+B04, B05, B06, B07, B08, B8A, B09, B11 and B12.
 """
 
 
@@ -1300,7 +1709,7 @@ story.append(
 
 
 # ============================================================
-# 21. SPECTRAL INDICES
+# 22. SPECTRAL INDICES
 # ============================================================
 
 story.append(
@@ -1407,13 +1816,13 @@ if NDVI_CHART is not None:
         Image(
             NDVI_CHART,
             width=165 * mm,
-            height=95 * mm
+            height=90 * mm
         )
     )
 
 
 # ============================================================
-# 22. ALL BAND ANALYSIS
+# 23. ALL-BAND ANALYSIS
 # ============================================================
 
 story.append(
@@ -1430,6 +1839,7 @@ story.append(
 
 
 all_band_text = """
+
 The all-band Sentinel-2 dataset preserves spectral
 information required for environmental and urban analysis.
 
@@ -1459,8 +1869,8 @@ B11 - Short-Wave Infrared
 
 B12 - Short-Wave Infrared
 
-These bands support vegetation, water, soil, built-up
-and land-cover analysis.
+The combined spectral information supports vegetation,
+water, soil, built-up and land-cover analysis.
 """
 
 
@@ -1473,35 +1883,281 @@ story.append(
 
 
 # ============================================================
-# 23. MACHINE LEARNING
+# 24. LULC / BUILT-UP / GREEN COVER
 # ============================================================
 
 story.append(
     Paragraph(
-        "8. Machine Learning Analysis",
+        "8. Land Use, Built-up Area and Green Cover",
+        heading_style
+    )
+)
+
+
+lulc_text = """
+
+GeoTwinAI incorporates land-use and land-cover analysis
+to understand the spatial composition of the study area.
+
+Built-up analysis provides an indication of urbanized
+areas, while green-cover analysis supports identification
+of vegetation-rich and vegetation-deficient regions.
+
+LULC analysis can support planning decisions involving
+urban expansion, open spaces, vegetation conservation
+and land management.
+"""
+
+
+story.append(
+    Paragraph(
+        lulc_text,
+        body_style
+    )
+)
+
+
+# ============================================================
+# 25. FLOOD RISK ANALYSIS
+# ============================================================
+
+story.append(
+    PageBreak()
+)
+
+
+story.append(
+    Paragraph(
+        "9. Flood Risk Analysis",
+        heading_style
+    )
+)
+
+
+if flood_data is not None:
+
+    flood_text = f"""
+
+The GeoTwinAI system includes flood-risk analysis as an
+additional environmental risk component.
+
+The detected flood dataset contains approximately
+{flood_count} records.
+
+The flood analysis can be used to identify areas that may
+require additional attention for drainage planning,
+water management, emergency planning and urban resilience.
+
+The interactive GIS map can be used to spatially inspect
+the flood-risk information.
+"""
+
+else:
+
+    flood_text = """
+
+Flood-risk analysis is included as a planned component of
+the GeoTwinAI platform.
+
+The report generator automatically searches the project
+output folders for flood-related datasets and incorporates
+them when available.
+"""
+
+
+story.append(
+    Paragraph(
+        flood_text,
+        body_style
+    )
+)
+
+
+if FLOOD_CHART is not None:
+
+    story.append(
+        Spacer(
+            1,
+            6 * mm
+        )
+    )
+
+    story.append(
+        Image(
+            FLOOD_CHART,
+            width=165 * mm,
+            height=90 * mm
+        )
+    )
+
+
+flood_images = find_images(
+    ["flood"]
+)
+
+
+for image_file in flood_images[:2]:
+
+    try:
+
+        story.append(
+            Spacer(
+                1,
+                5 * mm
+            )
+        )
+
+        story.append(
+            Image(
+                image_file,
+                width=165 * mm,
+                height=90 * mm
+            )
+        )
+
+    except Exception:
+        pass
+
+
+# ============================================================
+# 26. HEATMAP ANALYSIS
+# ============================================================
+
+story.append(
+    PageBreak()
+)
+
+
+story.append(
+    Paragraph(
+        "10. Urban Heatmap Analysis",
+        heading_style
+    )
+)
+
+
+if heatmap_data is not None:
+
+    heat_text = f"""
+
+The GeoTwinAI platform also incorporates urban heatmap
+analysis to identify spatial concentrations or hotspots
+associated with heat-related conditions.
+
+The detected heatmap dataset contains approximately
+{heatmap_count} records.
+
+Heatmap information can support urban heat mitigation,
+green-space planning, infrastructure planning and
+identification of areas requiring additional environmental
+attention.
+"""
+
+else:
+
+    heat_text = """
+
+Urban heatmap analysis is included as an environmental
+planning component of GeoTwinAI.
+
+The report generator automatically searches the project
+output folders for heat-related datasets and incorporates
+them when available.
+"""
+
+
+story.append(
+    Paragraph(
+        heat_text,
+        body_style
+    )
+)
+
+
+if HEAT_CHART is not None:
+
+    story.append(
+        Spacer(
+            1,
+            6 * mm
+        )
+    )
+
+    story.append(
+        Image(
+            HEAT_CHART,
+            width=165 * mm,
+            height=90 * mm
+        )
+    )
+
+
+heat_images = find_images(
+    [
+        "heat",
+        "thermal"
+    ]
+)
+
+
+for image_file in heat_images[:2]:
+
+    try:
+
+        story.append(
+            Spacer(
+                1,
+                5 * mm
+            )
+        )
+
+        story.append(
+            Image(
+                image_file,
+                width=165 * mm,
+                height=90 * mm
+            )
+        )
+
+    except Exception:
+        pass
+
+
+# ============================================================
+# 27. MACHINE LEARNING
+# ============================================================
+
+story.append(
+    PageBreak()
+)
+
+
+story.append(
+    Paragraph(
+        "11. Machine Learning Analysis",
         heading_style
     )
 )
 
 
 ml_text = """
+
 The machine-learning component of GeoTwinAI is designed
 to classify urban areas according to planning priority.
 
-The feature-engineering stage combines infrastructure
-and environmental attributes into a machine-learning
-dataset.
+Feature engineering combines relevant infrastructure,
+environmental and spatial attributes into a machine-
+learning dataset.
 
-The trained model can generate urban priority
-predictions such as High, Medium and Low.
+The trained model can generate priority predictions such
+as High, Medium and Low.
 
 These predictions can support identification of areas
 requiring additional infrastructure or environmental
 attention.
 
-Model performance should be evaluated using appropriate
-classification metrics such as accuracy, precision,
-recall and F1-score.
+Model performance should be evaluated using accuracy,
+precision, recall and F1-score.
 """
 
 
@@ -1514,12 +2170,65 @@ story.append(
 
 
 # ============================================================
-# 24. DIGITAL TWIN WORKFLOW
+# 28. INTERACTIVE GIS MAP
 # ============================================================
 
 story.append(
     Paragraph(
-        "9. GeoTwinAI Workflow",
+        "12. Interactive GIS Visualization",
+        heading_style
+    )
+)
+
+
+map_text = """
+
+GeoTwinAI provides an interactive GIS visualization layer
+for exploring the spatial distribution of urban
+infrastructure and environmental-risk information.
+
+The interactive map is designed to allow users to switch
+layers on and off and inspect individual spatial records.
+
+Available layers include buildings, hospitals, schools,
+parks, roads, water bodies, flood-risk information and
+urban heatmap information when the corresponding datasets
+are available.
+"""
+
+
+story.append(
+    Paragraph(
+        map_text,
+        body_style
+    )
+)
+
+
+map_file = os.path.join(
+    OUTPUT_DIR,
+    "Nagpur_Interactive_Map.html"
+)
+
+
+if os.path.exists(map_file):
+
+    story.append(
+        Paragraph(
+            "<b>Interactive Map:</b> "
+            "Nagpur_Interactive_Map.html",
+            body_style
+        )
+    )
+
+
+# ============================================================
+# 29. DIGITAL TWIN WORKFLOW
+# ============================================================
+
+story.append(
+    Paragraph(
+        "13. GeoTwinAI Workflow",
         heading_style
     )
 )
@@ -1531,9 +2240,21 @@ workflow = [
 
     "Data cleaning",
 
-    "Satellite processing",
+    "Satellite data acquisition",
 
-    "Spectral index generation",
+    "Satellite preprocessing",
+
+    "All-band processing",
+
+    "NDVI / NDBI / NDWI generation",
+
+    "LULC analysis",
+
+    "Built-up and green-cover analysis",
+
+    "Flood-risk analysis",
+
+    "Heatmap analysis",
 
     "Feature engineering",
 
@@ -1545,7 +2266,9 @@ workflow = [
 
     "Power BI dashboard",
 
-    "Urban planning decision support"
+    "Urban planning decision support",
+
+    "Future automated data updates"
 
 ]
 
@@ -1564,7 +2287,7 @@ for i, step in enumerate(
 
 
 # ============================================================
-# 25. KEY FINDINGS
+# 30. KEY FINDINGS
 # ============================================================
 
 story.append(
@@ -1574,7 +2297,7 @@ story.append(
 
 story.append(
     Paragraph(
-        "10. Key Findings",
+        "14. Key Findings",
         heading_style
     )
 )
@@ -1582,7 +2305,7 @@ story.append(
 
 findings = [
 
-    f"The processed infrastructure datasets contain "
+    f"The infrastructure dataset contains "
     f"{building_count} building records.",
 
     f"The healthcare dataset contains "
@@ -1594,20 +2317,26 @@ findings = [
     f"The parks dataset contains "
     f"{park_count} park records.",
 
+    f"The road dataset contains "
+    f"{road_count} records.",
+
     f"The water-body dataset contains "
     f"{water_count} records.",
 
     f"The selected Sentinel-2 scene has "
     f"{cloud_cover}% reported cloud cover.",
 
-    f"The mean NDVI is "
-    f"{mean_ndvi}.",
+    f"The mean NDVI is {mean_ndvi}.",
 
-    f"The mean NDBI is "
-    f"{mean_ndbi}.",
+    f"The mean NDBI is {mean_ndbi}.",
 
-    f"The mean NDWI is "
-    f"{mean_ndwi}."
+    f"The mean NDWI is {mean_ndwi}.",
+
+    f"Flood-risk records detected: "
+    f"{flood_count}.",
+
+    f"Heatmap records detected: "
+    f"{heatmap_count}."
 
 ]
 
@@ -1623,12 +2352,12 @@ for finding in findings:
 
 
 # ============================================================
-# 26. RECOMMENDATIONS
+# 31. RECOMMENDATIONS
 # ============================================================
 
 story.append(
     Paragraph(
-        "11. Recommendations",
+        "15. Recommendations",
         heading_style
     )
 )
@@ -1644,8 +2373,14 @@ recommendations = [
 
     "Use NDBI to identify highly built-up areas.",
 
-    "Use NDWI and water-body data to support "
+    "Use NDWI and water-body information for "
     "water-resource planning.",
+
+    "Use flood-risk analysis for drainage and "
+    "urban-resilience planning.",
+
+    "Use heatmap analysis to identify potential "
+    "urban hotspots.",
 
     "Use ML priority classifications to identify "
     "areas requiring planning attention.",
@@ -1653,11 +2388,14 @@ recommendations = [
     "Use Power BI for executive-level monitoring "
     "and comparative analysis.",
 
-    "Periodically update Sentinel-2 observations "
-    "to monitor urban environmental change.",
+    "Use multi-date satellite observations to "
+    "monitor changes over time.",
 
     "Integrate official MRSAC datasets wherever "
-    "available for production-level analysis."
+    "available for production-level analysis.",
+
+    "Maintain year/date information so that future "
+    "observations can be compared with historical data."
 
 ]
 
@@ -1673,12 +2411,12 @@ for recommendation in recommendations:
 
 
 # ============================================================
-# 27. LIMITATIONS
+# 32. LIMITATIONS
 # ============================================================
 
 story.append(
     Paragraph(
-        "12. Limitations",
+        "16. Limitations",
         heading_style
     )
 )
@@ -1695,14 +2433,17 @@ limitations = [
     "Cloud-cover metadata is scene-level and does not "
     "necessarily represent cloud conditions at every pixel.",
 
-    "The current analysis uses one selected best-available "
-    "scene rather than a full temporal time series.",
+    "Flood and heatmap outputs depend on the underlying "
+    "input datasets and processing methods.",
 
     "Machine-learning predictions depend on the quality "
     "and representativeness of the training dataset.",
 
     "Infrastructure records should be validated against "
-    "authoritative datasets before operational deployment."
+    "authoritative datasets before operational deployment.",
+
+    "Future-date information cannot be known until new "
+    "observations or datasets become available."
 
 ]
 
@@ -1718,7 +2459,7 @@ for limitation in limitations:
 
 
 # ============================================================
-# 28. CONCLUSION
+# 33. CONCLUSION
 # ============================================================
 
 story.append(
@@ -1728,30 +2469,36 @@ story.append(
 
 story.append(
     Paragraph(
-        "13. Conclusion",
+        "17. Conclusion",
         heading_style
     )
 )
 
 
 conclusion = """
+
 GeoTwinAI provides a unified framework for combining
-geospatial infrastructure data, satellite remote sensing
-and machine learning for smart-city planning.
+geospatial infrastructure data, satellite remote sensing,
+environmental indices, flood-risk analysis, heatmap
+analysis and machine learning for smart-city planning.
 
 The integration of Sentinel-2 spectral information,
-environmental indices, infrastructure datasets and
-machine-learning predictions provides a spatially
-oriented view of urban conditions.
+environmental indicators and infrastructure datasets
+provides a spatially oriented understanding of urban
+conditions.
+
+The flood-risk and heatmap components extend the platform
+from infrastructure mapping to environmental-risk
+assessment.
 
 The interactive GIS map provides detailed spatial
-exploration, while Power BI provides higher-level
+exploration, while Power BI can provide higher-level
 analytical dashboards for decision-makers.
 
 Future development can include multi-date satellite
 monitoring, improved administrative boundaries, official
 MRSAC datasets, advanced machine-learning models and
-automated data updates.
+automated acquisition of newly available observations.
 
 The overall system can therefore serve as a foundation
 for an AI-enabled urban planning and decision-support
@@ -1768,12 +2515,12 @@ story.append(
 
 
 # ============================================================
-# 29. TECHNICAL INFORMATION
+# 34. TECHNICAL INFORMATION
 # ============================================================
 
 story.append(
     Paragraph(
-        "14. Technical Information",
+        "18. Technical Information",
         heading_style
     )
 )
@@ -1787,19 +2534,50 @@ technical = [
 
     ["Product", "Sentinel-2 Level-2A"],
 
-    ["Satellite Source", "Microsoft Planetary Computer"],
+    [
+        "Satellite Source",
+        "Microsoft Planetary Computer"
+    ],
 
-    ["Spatial Reference Grid", "10 metres"],
+    [
+        "Spatial Reference",
+        "10 metres"
+    ],
 
-    ["Indices", "NDVI, NDBI, NDWI"],
+    [
+        "Indices",
+        "NDVI, NDBI, NDWI"
+    ],
 
-    ["GIS Visualization", "Interactive HTML Map"],
+    [
+        "Land Analysis",
+        "LULC / Built-up / Green Cover"
+    ],
 
-    ["Dashboard", "Microsoft Power BI"],
+    [
+        "Risk Analysis",
+        "Flood Risk / Heatmap"
+    ],
 
-    ["Machine Learning", "Urban Priority Classification"],
+    [
+        "GIS",
+        "Folium Interactive HTML Map"
+    ],
 
-    ["Report Format", "PDF"]
+    [
+        "Machine Learning",
+        "Urban Priority Classification"
+    ],
+
+    [
+        "Dashboard",
+        "Microsoft Power BI"
+    ],
+
+    [
+        "Report",
+        "Professional PDF"
+    ]
 
 ]
 
@@ -1864,50 +2642,63 @@ story.append(
 
 
 # ============================================================
-# 30. BUILD PDF
+# 35. BUILD PDF
 # ============================================================
 
 print()
-print("Generating PDF...")
+print(
+    "Generating PDF..."
+)
 
 
 try:
 
-    doc.build(story)
+    doc.build(
+        story
+    )
 
 except Exception as e:
 
     print()
-    print("ERROR WHILE CREATING PDF")
-    print(e)
+    print(
+        "ERROR WHILE CREATING PDF"
+    )
+
+    print(
+        e
+    )
 
     raise
 
 
 # ============================================================
-# 31. FINAL MESSAGE
+# 36. FINAL
 # ============================================================
 
 print()
 print("=" * 70)
 print("       PROFESSIONAL REPORT COMPLETED")
 print("=" * 70)
+print()
+
+print(
+    "Report created:"
+)
+
+print(
+    REPORT_FILE
+)
 
 print()
 
-print("Report created:")
+print(
+    "Report folder:"
+)
 
-print(REPORT_FILE)
-
-print()
-
-print("Report folder:")
-
-print(REPORT_DIR)
+print(
+    REPORT_DIR
+)
 
 print()
 
 print("=" * 70)
-
-
-

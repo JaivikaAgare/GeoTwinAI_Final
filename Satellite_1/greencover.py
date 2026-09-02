@@ -1,5 +1,6 @@
 import os
 import warnings
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -13,6 +14,7 @@ from rasterio.transform import xy
 from pystac_client import Client
 import planetary_computer
 
+
 warnings.filterwarnings("ignore")
 
 
@@ -21,9 +23,7 @@ warnings.filterwarnings("ignore")
 # ============================================================
 
 BASE_DIR = os.path.dirname(
-    os.path.dirname(
-        os.path.abspath(__file__)
-    )
+    os.path.abspath(__file__)
 )
 
 OUTPUT_DIR = os.path.join(
@@ -59,16 +59,24 @@ PNG_FILE = os.path.join(
 
 
 # ============================================================
-# 3. NAGPUR PROCESSING AREA
+# 3. NAGPUR BOUNDING BOX
 # ============================================================
-# This is a processing/search box.
-# It is NOT a political boundary.
+#
+# No shapefile required.
+#
+# WGS84:
+# min longitude
+# min latitude
+# max longitude
+# max latitude
+#
+# ============================================================
 
 NAGPUR_BBOX = [
-    78.95,   # West
-    20.95,   # South
-    79.25,   # East
-    21.25    # North
+    78.95,
+    21.05,
+    79.20,
+    21.25
 ]
 
 
@@ -77,39 +85,40 @@ NAGPUR_BBOX = [
 # ============================================================
 
 START_DATE = "2026-01-01T00:00:00Z"
-END_DATE = "2026-08-22T23:59:59Z"
+
+END_DATE = datetime.now(
+    timezone.utc
+).strftime(
+    "%Y-%m-%dT%H:%M:%SZ"
+)
+
+
+# ============================================================
+# 5. PROCESSING SETTINGS
+# ============================================================
 
 MAX_CLOUD = 20
 
+NDVI_THRESHOLD = 0.30
 
-# ============================================================
-# 5. GREEN-COVER DEFINITION
-# ============================================================
-# NDVI >= 0.30 is classified as vegetated/green cover.
-#
-# This threshold is kept explicitly in the output.
+# Sentinel-2 B04/B08 = 10m
+PIXEL_SIZE_M = 10
 
-GREEN_NDVI_THRESHOLD = 0.30
-
-
-# ============================================================
-# 6. SPATIAL GRID
-# ============================================================
-# Sentinel-2 B04 and B08 are 10 m.
-#
-# 10 x 10 pixels = approximately 100 m x 100 m.
-
+# 10 x 10 = approximately 100m x 100m
 FACTOR = 10
 
+# 10m x 10m = 100 m2 = 0.01 hectare
+PIXEL_AREA_HA = 0.01
+
 
 # ============================================================
-# 7. HEADER
+# 6. HEADER
 # ============================================================
 
 print()
-print("=" * 65)
-print("              NAGPUR SENTINEL-2 GREEN COVER")
-print("=" * 65)
+print("=" * 70)
+print("       NAGPUR SENTINEL-2 GREEN COVER ANALYSIS")
+print("=" * 70)
 
 print()
 print("Project:")
@@ -119,13 +128,48 @@ print()
 print("Output:")
 print(OUTPUT_DIR)
 
+print()
+print("Nagpur BBOX:")
+print(
+    NAGPUR_BBOX
+)
+
+print()
+print("Search Start Date:")
+print(START_DATE)
+
+print()
+print("Search End Date:")
+print(END_DATE)
+
+print()
+print("Maximum Cloud Cover:")
+print(
+    f"{MAX_CLOUD}%"
+)
+
+print()
+print("NDVI Green Cover Threshold:")
+print(
+    NDVI_THRESHOLD
+)
+
+print()
+print("10m Pixel Area:")
+print(
+    PIXEL_AREA_HA,
+    "ha"
+)
+
 
 # ============================================================
-# 8. CONNECT TO PLANETARY COMPUTER
+# 7. CONNECT TO PLANETARY COMPUTER
 # ============================================================
 
 print()
-print("Connecting to Sentinel-2 data source...")
+print("=" * 70)
+print("CONNECTING TO PLANETARY COMPUTER")
+print("=" * 70)
 
 STAC_URL = (
     "https://planetarycomputer.microsoft.com/api/stac/v1"
@@ -135,17 +179,21 @@ catalog = Client.open(
     STAC_URL
 )
 
+print()
 print("Connection successful.")
 
 
 # ============================================================
-# 9. SEARCH SENTINEL-2 L2A
+# 8. SEARCH SENTINEL-2 L2A
 # ============================================================
 
 print()
-print("Searching Sentinel-2 imagery...")
+print("=" * 70)
+print("SEARCHING SENTINEL-2 IMAGERY")
+print("=" * 70)
 
 search = catalog.search(
+
     collections=[
         "sentinel-2-l2a"
     ],
@@ -165,9 +213,11 @@ search = catalog.search(
     }
 )
 
+
 items = list(
     search.items()
 )
+
 
 print()
 print(
@@ -179,57 +229,123 @@ print(
 if len(items) == 0:
 
     raise RuntimeError(
-        "No Sentinel-2 scenes found for Nagpur."
+        "No Sentinel-2 scenes found."
     )
 
 
 # ============================================================
-# 10. SORT BY CLOUD COVER
+# 9. CHECK REQUIRED BANDS
 # ============================================================
 
-items.sort(
-    key=lambda item:
-        item.properties.get(
-            "eo:cloud_cover",
-            100
+valid_items = []
+
+for scene in items:
+
+    if (
+        scene.assets.get("B04")
+        is not None
+        and
+        scene.assets.get("B08")
+        is not None
+    ):
+
+        valid_items.append(
+            scene
         )
+
+
+print()
+print(
+    "Scenes with B04 and B08:",
+    len(valid_items)
+)
+
+
+if len(valid_items) == 0:
+
+    raise RuntimeError(
+        "No Sentinel-2 scene contains B04 and B08."
+    )
+
+
+# ============================================================
+# 10. SORT BY DATE
+# ============================================================
+
+def get_scene_datetime(item):
+
+    dt = item.datetime
+
+    if dt is None:
+
+        return datetime.min.replace(
+            tzinfo=timezone.utc
+        )
+
+    if dt.tzinfo is None:
+
+        dt = dt.replace(
+            tzinfo=timezone.utc
+        )
+
+    return dt
+
+
+valid_items.sort(
+    key=get_scene_datetime,
+    reverse=True
 )
 
 
 # ============================================================
-# 11. SHOW AVAILABLE SCENES
+# 11. SHOW LATEST SCENES
 # ============================================================
 
 print()
-print("Available scenes:")
+print("=" * 70)
+print("LATEST AVAILABLE SENTINEL-2 SCENES")
+print("=" * 70)
 
-for item_temp in items[:10]:
+print()
 
-    date_temp = (
-        item_temp.datetime.strftime(
-            "%Y-%m-%d"
+for index, scene in enumerate(
+    valid_items[:15],
+    start=1
+):
+
+    if scene.datetime is not None:
+
+        scene_date = (
+            scene.datetime.strftime(
+                "%Y-%m-%d"
+            )
         )
+
+    else:
+
+        scene_date = "Unknown"
+
+
+    cloud = scene.properties.get(
+        "eo:cloud_cover",
+        100
     )
 
-    cloud_temp = (
-        item_temp.properties.get(
-            "eo:cloud_cover",
-            100
-        )
-    )
 
     print(
-        f"{date_temp} | "
-        f"Cloud: {cloud_temp}% | "
-        f"{item_temp.id}"
+        f"{index:02d}. "
+        f"{scene_date} | "
+        f"Cloud: {cloud:.2f}% | "
+        f"{scene.id}"
     )
 
 
 # ============================================================
-# 12. SELECT BEST SCENE
+# 12. SELECT LATEST SCENE
 # ============================================================
 
-item = items[0]
+item = valid_items[0]
+
 
 item = planetary_computer.sign(
     item
@@ -242,21 +358,42 @@ SCENE_DATE = (
     )
 )
 
-CLOUD_COVER = (
-    item.properties.get(
-        "eo:cloud_cover",
-        100
-    )
+
+CLOUD_COVER = item.properties.get(
+    "eo:cloud_cover",
+    100
 )
+
 
 SCENE_ID = item.id
 
 
 print()
-print("Selected scene:")
-print("Date:", SCENE_DATE)
-print("Cloud cover:", CLOUD_COVER, "%")
-print("Scene:", SCENE_ID)
+print("=" * 70)
+print("SELECTED SENTINEL-2 SCENE")
+print("=" * 70)
+
+print()
+print("Date:")
+print(
+    SCENE_DATE
+)
+
+print()
+print("Cloud cover:")
+print(
+    round(
+        CLOUD_COVER,
+        2
+    ),
+    "%"
+)
+
+print()
+print("Scene:")
+print(
+    SCENE_ID
+)
 
 
 # ============================================================
@@ -271,10 +408,11 @@ def read_band(
         band_name
     )
 
+
     if asset is None:
 
         raise RuntimeError(
-            f"Sentinel-2 asset not found: {band_name}"
+            f"Asset not found: {band_name}"
         )
 
 
@@ -282,8 +420,27 @@ def read_band(
         asset.href
     ) as src:
 
-        # Convert WGS84 Nagpur box
-        # into raster CRS.
+        print()
+        print(
+            f"Reading {band_name}"
+        )
+
+        print(
+            "Source CRS:",
+            src.crs
+        )
+
+        print(
+            "Source size:",
+            src.width,
+            "x",
+            src.height
+        )
+
+
+        # ----------------------------------------------------
+        # Convert Nagpur BBOX to raster CRS
+        # ----------------------------------------------------
 
         left, bottom, right, top = (
             transform_bounds(
@@ -295,10 +452,16 @@ def read_band(
                 NAGPUR_BBOX[0],
                 NAGPUR_BBOX[1],
                 NAGPUR_BBOX[2],
-                NAGPUR_BBOX[3]
+                NAGPUR_BBOX[3],
+
+                densify_pts=21
             )
         )
 
+
+        # ----------------------------------------------------
+        # Create raster window
+        # ----------------------------------------------------
 
         window = from_bounds(
 
@@ -318,6 +481,18 @@ def read_band(
         )
 
 
+        print(
+            "Reading window:",
+            int(window.width),
+            "x",
+            int(window.height)
+        )
+
+
+        # ----------------------------------------------------
+        # Read data
+        # ----------------------------------------------------
+
         data = src.read(
             1,
             window=window
@@ -326,6 +501,10 @@ def read_band(
         )
 
 
+        # ----------------------------------------------------
+        # Cropped transform
+        # ----------------------------------------------------
+
         cropped_transform = (
             src.window_transform(
                 window
@@ -333,50 +512,64 @@ def read_band(
         )
 
 
-        raster_crs = src.crs
-
-
-        # Sentinel-2 L2A reflectance scaling.
-
-        data = data / 10000.0
-
-
         return (
             data,
             cropped_transform,
-            raster_crs
+            src.crs
         )
 
 
 # ============================================================
-# 14. READ B04 AND B08
+# 14. READ B04
 # ============================================================
 
 print()
-print("Reading Sentinel-2 bands...")
-
-print("B04 - Red")
+print("=" * 70)
+print("READING B04 - RED")
+print("=" * 70)
 
 B04, raster_transform, raster_crs = (
-    read_band("B04")
-)
-
-print("B08 - Near Infrared")
-
-B08, _, _ = (
-    read_band("B08")
+    read_band(
+        "B04"
+    )
 )
 
 
 # ============================================================
-# 15. CHECK DIMENSIONS
+# 15. READ B08
 # ============================================================
 
 print()
-print("Band dimensions:")
+print("=" * 70)
+print("READING B08 - NIR")
+print("=" * 70)
 
-print("B04:", B04.shape)
-print("B08:", B08.shape)
+B08, _, _ = (
+    read_band(
+        "B08"
+    )
+)
+
+
+# ============================================================
+# 16. DIMENSION CHECK
+# ============================================================
+
+print()
+print("=" * 70)
+print("BAND DIMENSIONS")
+print("=" * 70)
+
+print()
+print(
+    "B04:",
+    B04.shape
+)
+
+print(
+    "B08:",
+    B08.shape
+)
 
 
 if B04.shape != B08.shape:
@@ -387,7 +580,20 @@ if B04.shape != B08.shape:
 
 
 # ============================================================
-# 16. VALID PIXELS
+# 17. CONVERT SENTINEL-2 SCALE
+# ============================================================
+
+B04 = (
+    B04 / 10000.0
+)
+
+B08 = (
+    B08 / 10000.0
+)
+
+
+# ============================================================
+# 18. VALID PIXELS
 # ============================================================
 
 valid_pixels = (
@@ -399,22 +605,31 @@ valid_pixels = (
     & (B04 >= 0)
 
     & (B08 >= 0)
+
+)
+
+
+valid_pixel_count = int(
+    valid_pixels.sum()
 )
 
 
 print()
 print(
     "Valid 10m pixels:",
-    int(valid_pixels.sum())
+    valid_pixel_count
 )
 
 
 # ============================================================
-# 17. CALCULATE NDVI
+# 19. CALCULATE NDVI
 # ============================================================
 
 print()
-print("Calculating NDVI for green-cover detection...")
+print("=" * 70)
+print("CALCULATING NDVI")
+print("=" * 70)
+
 
 denominator = (
     B08 + B04
@@ -422,75 +637,52 @@ denominator = (
 
 
 NDVI = np.full(
+
     B04.shape,
+
     np.nan,
+
     dtype=np.float32
 )
 
 
 safe_pixels = (
+
     valid_pixels
-    &
-    (denominator != 0)
+
+    & (denominator != 0)
+
 )
 
 
 NDVI[safe_pixels] = (
 
-    B08[safe_pixels]
-    -
-    B04[safe_pixels]
+    (
+        B08[safe_pixels]
+        -
+        B04[safe_pixels]
+    )
 
-) / (
+    /
 
-    B08[safe_pixels]
-    +
-    B04[safe_pixels]
+    (
+        B08[safe_pixels]
+        +
+        B04[safe_pixels]
+    )
+
 )
 
-
-# Remove impossible values.
 
 NDVI[
+
     (NDVI < -1)
+
     |
+
     (NDVI > 1)
+
 ] = np.nan
-
-
-print(
-    "Valid NDVI pixels:",
-    int(
-        np.isfinite(NDVI).sum()
-    )
-)
-
-
-# ============================================================
-# 18. GREEN COVER MASK
-# ============================================================
-
-print()
-print(
-    "Detecting green cover using NDVI threshold:",
-    GREEN_NDVI_THRESHOLD
-)
-
-
-green_cover_mask = (
-
-    np.isfinite(NDVI)
-
-    & (
-        NDVI
-        >= GREEN_NDVI_THRESHOLD
-    )
-)
-
-
-green_pixels = int(
-    green_cover_mask.sum()
-)
 
 
 valid_ndvi_pixels = int(
@@ -500,20 +692,122 @@ valid_ndvi_pixels = int(
 
 print()
 print(
-    "Green-cover 10m pixels:",
-    green_pixels
+    "Valid NDVI pixels:",
+    valid_ndvi_pixels
 )
 
 
+# ============================================================
+# 20. GREEN COVER AT 10m
+# ============================================================
+
+print()
+print("=" * 70)
+print("CALCULATING GREEN COVER")
+print("=" * 70)
+
+
+green_mask = (
+
+    np.isfinite(NDVI)
+
+    & (NDVI >= NDVI_THRESHOLD)
+
+)
+
+
+green_pixels = int(
+    green_mask.sum()
+)
+
+
+print()
 print(
-    "Green-cover percentage:",
+    "NDVI Threshold:",
+    NDVI_THRESHOLD
+)
+
+print(
+    "Green 10m pixels:",
+    green_pixels
+)
+
+print(
+    "Valid NDVI pixels:",
+    valid_ndvi_pixels
+)
+
+
+# ============================================================
+# 21. CORRECT 10m GREEN AREA
+# ============================================================
+
+green_area_ha_10m = (
+
+    green_pixels
+
+    *
+
+    PIXEL_AREA_HA
+
+)
+
+
+valid_area_ha_10m = (
+
+    valid_ndvi_pixels
+
+    *
+
+    PIXEL_AREA_HA
+
+)
+
+
+if valid_ndvi_pixels > 0:
+
+    green_percentage_10m = (
+
+        green_pixels
+
+        /
+
+        valid_ndvi_pixels
+
+        *
+
+        100
+
+    )
+
+else:
+
+    green_percentage_10m = 0
+
+
+print()
+print(
+    "Green Cover Area (10m):",
     round(
-        (
-            green_pixels
-            /
-            valid_ndvi_pixels
-        )
-        * 100,
+        green_area_ha_10m,
+        2
+    ),
+    "ha"
+)
+
+print(
+    "Valid Area:",
+    round(
+        valid_area_ha_10m,
+        2
+    ),
+    "ha"
+)
+
+print(
+    "Green Cover Percentage:",
+    round(
+        green_percentage_10m,
         2
     ),
     "%"
@@ -521,13 +815,13 @@ print(
 
 
 # ============================================================
-# 19. AGGREGATE TO APPROX. 100m
+# 22. PREPARE 100m GRID
 # ============================================================
 
 print()
-print(
-    "Aggregating 10m pixels into approximately 100m cells..."
-)
+print("=" * 70)
+print("AGGREGATING TO APPROXIMATELY 100m CELLS")
+print("=" * 70)
 
 
 height, width = NDVI.shape
@@ -543,29 +837,20 @@ new_width = (
 ) * FACTOR
 
 
-B04 = B04[
-    :new_height,
-    :new_width
-]
-
-B08 = B08[
-    :new_height,
-    :new_width
-]
-
 NDVI = NDVI[
     :new_height,
     :new_width
 ]
 
-green_cover_mask = green_cover_mask[
+
+green_mask = green_mask[
     :new_height,
     :new_width
 ]
 
 
 # ============================================================
-# 20. BLOCK MEAN FUNCTION
+# 23. BLOCK MEAN
 # ============================================================
 
 def block_mean(
@@ -574,6 +859,7 @@ def block_mean(
 ):
 
     h, w = array.shape
+
 
     reshaped = array.reshape(
 
@@ -584,25 +870,32 @@ def block_mean(
         w // factor,
 
         factor
+
     )
 
 
     return np.nanmean(
+
         reshaped,
+
         axis=(1, 3)
+
     )
 
 
 # ============================================================
-# 21. BLOCK GREEN-COVER PERCENTAGE
+# 24. GREEN FRACTION
 # ============================================================
 
-def block_green_percentage(
+def block_green_fraction(
+
     mask,
     factor
+
 ):
 
     h, w = mask.shape
+
 
     reshaped = mask.reshape(
 
@@ -613,42 +906,39 @@ def block_green_percentage(
         w // factor,
 
         factor
+
     )
 
 
     return (
+
         reshaped.mean(
             axis=(1, 3)
         )
-        * 100
+
     )
 
 
 # ============================================================
-# 22. CREATE SPATIAL GRIDS
+# 25. CREATE 100m NDVI GRID
 # ============================================================
 
 NDVI_GRID = block_mean(
+
     NDVI,
+
     FACTOR
+
 )
 
 
-B04_GRID = block_mean(
-    B04,
-    FACTOR
-)
+# ============================================================
+# 26. CREATE GREEN FRACTION GRID
+# ============================================================
 
-
-B08_GRID = block_mean(
-    B08,
-    FACTOR
-)
-
-
-GREEN_PERCENT_GRID = (
-    block_green_percentage(
-        green_cover_mask,
+GREEN_FRACTION_GRID = (
+    block_green_fraction(
+        green_mask,
         FACTOR
     )
 )
@@ -667,21 +957,20 @@ print(
     grid_width
 )
 
-
 print(
-    "Potential spatial cells:",
+    "Potential cells:",
     grid_height * grid_width
 )
 
 
 # ============================================================
-# 23. CREATE SPATIAL CSV
+# 27. CREATE SPATIAL RECORDS
 # ============================================================
 
 print()
-print(
-    "Creating green-cover spatial records..."
-)
+print("=" * 70)
+print("CREATING GREEN COVER SPATIAL RECORDS")
+print("=" * 70)
 
 
 records = []
@@ -695,14 +984,16 @@ for row in range(
         grid_width
     ):
 
-        ndvi_value = NDVI_GRID[
-            row,
-            col
-        ]
+        ndvi_value = (
+            NDVI_GRID[
+                row,
+                col
+            ]
+        )
 
 
-        green_percentage = (
-            GREEN_PERCENT_GRID[
+        green_fraction = (
+            GREEN_FRACTION_GRID[
                 row,
                 col
             ]
@@ -716,22 +1007,42 @@ for row in range(
             continue
 
 
-        # Center of the 100m cell.
+        if not np.isfinite(
+            green_fraction
+        ):
+
+            continue
+
+
+        # ----------------------------------------------------
+        # Center pixel of 100m block
+        # ----------------------------------------------------
 
         source_row = (
+
             row * FACTOR
-            + FACTOR // 2
+
+            +
+
+            FACTOR // 2
+
         )
 
 
         source_col = (
+
             col * FACTOR
-            + FACTOR // 2
+
+            +
+
+            FACTOR // 2
+
         )
 
 
-        # Raster row/column
-        # -> projected coordinate.
+        # ----------------------------------------------------
+        # Raster coordinates
+        # ----------------------------------------------------
 
         x, y = xy(
 
@@ -742,22 +1053,24 @@ for row in range(
             source_col,
 
             offset="center"
+
         )
 
 
-        # Projected CRS -> WGS84.
+        # ----------------------------------------------------
+        # Convert to WGS84
+        # ----------------------------------------------------
 
-        longitude_list, latitude_list = (
-            transform(
+        longitude_list, latitude_list = transform(
 
-                raster_crs,
+            raster_crs,
 
-                "EPSG:4326",
+            "EPSG:4326",
 
-                [x],
+            [x],
 
-                [y]
-            )
+            [y]
+
         )
 
 
@@ -770,57 +1083,75 @@ for row in range(
         )
 
 
-        # Approximate area represented
-        # by each 100m cell.
+        # ----------------------------------------------------
+        # 100m cell area
+        # ----------------------------------------------------
 
-        cell_area_m2 = 100 * 100
+        cell_area_ha = 1.0
 
-        green_area_m2 = (
-            green_percentage
-            / 100
-            * cell_area_m2
-        )
+
+        # ----------------------------------------------------
+        # ACTUAL GREEN AREA
+        #
+        # Example:
+        #
+        # 70% of 100m cell green
+        #
+        # green area = 0.70 ha
+        #
+        # ----------------------------------------------------
 
         green_area_ha = (
-            green_area_m2
-            / 10000
+
+            green_fraction
+
+            *
+
+            cell_area_ha
+
         )
 
 
-        # Green-cover class.
+        green_percent = (
 
-        if green_percentage >= 75:
+            green_fraction
 
-            green_class = (
-                "Very High Green Cover"
+            *
+
+            100
+
+        )
+
+
+        # ----------------------------------------------------
+        # Green status
+        # ----------------------------------------------------
+
+        if green_fraction >= 0.5:
+
+            green_status = (
+                "Green Cover"
             )
 
-        elif green_percentage >= 50:
-
-            green_class = (
-                "High Green Cover"
-            )
-
-        elif green_percentage >= 25:
-
-            green_class = (
-                "Moderate Green Cover"
-            )
-
-        elif green_percentage > 0:
-
-            green_class = (
-                "Low Green Cover"
-            )
+            green_flag = 1
 
         else:
 
-            green_class = (
-                "No Green Cover"
+            green_status = (
+                "Non-Green Cover"
             )
 
+            green_flag = 0
+
+
+        # ----------------------------------------------------
+        # Append
+        # ----------------------------------------------------
 
         records.append({
+
+            "Region":
+                "Nagpur",
 
             "Latitude":
                 round(
@@ -834,7 +1165,7 @@ for row in range(
                     6
                 ),
 
-            "NDVI_Mean":
+            "NDVI":
                 round(
                     float(
                         ndvi_value
@@ -842,21 +1173,33 @@ for row in range(
                     6
                 ),
 
+            "NDVI_Threshold":
+                NDVI_THRESHOLD,
+
+            "Green_Cover":
+                green_status,
+
+            "Green_Flag":
+                green_flag,
+
+            "Green_Fraction":
+                round(
+                    float(
+                        green_fraction
+                    ),
+                    6
+                ),
+
             "Green_Cover_Percent":
                 round(
                     float(
-                        green_percentage
+                        green_percent
                     ),
                     2
                 ),
 
-            "Green_Cover_Area_m2":
-                round(
-                    float(
-                        green_area_m2
-                    ),
-                    2
-                ),
+            "Cell_Area_ha":
+                cell_area_ha,
 
             "Green_Cover_Area_ha":
                 round(
@@ -865,34 +1208,6 @@ for row in range(
                     ),
                     6
                 ),
-
-            "Green_Cover_Class":
-                green_class,
-
-            "B04_Red_Mean":
-                round(
-                    float(
-                        B04_GRID[
-                            row,
-                            col
-                        ]
-                    ),
-                    6
-                ),
-
-            "B08_NIR_Mean":
-                round(
-                    float(
-                        B08_GRID[
-                            row,
-                            col
-                        ]
-                    ),
-                    6
-                ),
-
-            "NDVI_Threshold":
-                GREEN_NDVI_THRESHOLD,
 
             "Satellite":
                 "Sentinel-2",
@@ -904,18 +1219,21 @@ for row in range(
                 SCENE_DATE,
 
             "Cloud_Cover_Percent":
-                CLOUD_COVER,
+                round(
+                    float(
+                        CLOUD_COVER
+                    ),
+                    4
+                ),
 
             "Grid_Size_m":
-                100,
+                100
 
-            "Data_Source":
-                "Microsoft Planetary Computer Sentinel-2 L2A"
         })
 
 
 # ============================================================
-# 24. DATAFRAME
+# 28. CREATE DATAFRAME
 # ============================================================
 
 df = pd.DataFrame(
@@ -926,7 +1244,7 @@ df = pd.DataFrame(
 if df.empty:
 
     raise RuntimeError(
-        "Green-cover spatial dataset is empty."
+        "Green Cover spatial dataset is empty."
     )
 
 
@@ -938,12 +1256,151 @@ print(
 
 
 # ============================================================
-# 25. SAVE SPATIAL CSV
+# 29. CORRECT AREA CALCULATION
+# ============================================================
+
+processed_area_ha = (
+
+    df["Cell_Area_ha"]
+
+    *
+
+    df["Green_Fraction"].notna()
+
+).sum()
+
+
+green_cover_area_ha = (
+    df[
+        "Green_Cover_Area_ha"
+    ].sum()
+)
+
+
+if processed_area_ha > 0:
+
+    green_cover_percent = (
+
+        green_cover_area_ha
+
+        /
+
+        processed_area_ha
+
+        *
+
+        100
+
+    )
+
+else:
+
+    green_cover_percent = 0
+
+
+mean_ndvi = (
+    df["NDVI"].mean()
+)
+
+
+min_ndvi = (
+    df["NDVI"].min()
+)
+
+
+max_ndvi = (
+    df["NDVI"].max()
+)
+
+
+mean_green_fraction = (
+    df[
+        "Green_Fraction"
+    ].mean()
+)
+
+
+print()
+print("=" * 70)
+print("GREEN COVER STATISTICS")
+print("=" * 70)
+
+
+print()
+print(
+    "Processed Area (ha):",
+    round(
+        processed_area_ha,
+        2
+    )
+)
+
+
+print(
+    "Green Cover Area (ha):",
+    round(
+        green_cover_area_ha,
+        2
+    )
+)
+
+
+print(
+    "Green Cover Percentage:",
+    round(
+        green_cover_percent,
+        2
+    ),
+    "%"
+)
+
+
+print(
+    "Mean Green Fraction:",
+    round(
+        mean_green_fraction,
+        4
+    )
+)
+
+
+print(
+    "Mean NDVI:",
+    round(
+        mean_ndvi,
+        4
+    )
+)
+
+
+print(
+    "Minimum NDVI:",
+    round(
+        min_ndvi,
+        4
+    )
+)
+
+
+print(
+    "Maximum NDVI:",
+    round(
+        max_ndvi,
+        4
+    )
+)
+
+
+# ============================================================
+# 30. SAVE SPATIAL CSV
 # ============================================================
 
 df.to_csv(
+
     SPATIAL_CSV,
+
     index=False
+
 )
 
 
@@ -958,29 +1415,8 @@ print(
 
 
 # ============================================================
-# 26. SUMMARY STATISTICS
+# 31. SUMMARY CSV
 # ============================================================
-
-total_area_ha = (
-    len(df)
-    * 1.0
-)
-
-
-green_area_ha = (
-    df[
-        "Green_Cover_Area_ha"
-    ].sum()
-)
-
-
-green_percentage = (
-
-    green_area_ha
-    /
-    total_area_ha
-) * 100
-
 
 summary_df = pd.DataFrame({
 
@@ -1005,71 +1441,54 @@ summary_df = pd.DataFrame({
     ],
 
     "NDVI_Threshold": [
-        GREEN_NDVI_THRESHOLD
+        NDVI_THRESHOLD
     ],
 
     "Spatial_Records": [
         len(df)
     ],
 
-    "Green_Cover_Area_ha": [
-        round(
-            green_area_ha,
-            4
-        )
+    "Processed_Area_ha": [
+        processed_area_ha
     ],
 
-    "Processed_Area_ha": [
-        round(
-            total_area_ha,
-            4
-        )
+    "Green_Cover_Area_ha": [
+        green_cover_area_ha
     ],
 
     "Green_Cover_Percent": [
-        round(
-            green_percentage,
-            2
-        )
+        green_cover_percent
+    ],
+
+    "Mean_Green_Fraction": [
+        mean_green_fraction
     ],
 
     "Mean_NDVI": [
-        round(
-            df[
-                "NDVI_Mean"
-            ].mean(),
-            4
-        )
+        mean_ndvi
     ],
 
     "Min_NDVI": [
-        round(
-            df[
-                "NDVI_Mean"
-            ].min(),
-            4
-        )
+        min_ndvi
     ],
 
     "Max_NDVI": [
-        round(
-            df[
-                "NDVI_Mean"
-            ].max(),
-            4
-        )
+        max_ndvi
     ],
 
     "Data_Source": [
-        "Microsoft Planetary Computer Sentinel-2 L2A"
+        "Microsoft Planetary Computer"
     ]
 
 })
 
 
 summary_df.to_csv(
+
     SUMMARY_CSV,
+
     index=False
+
 )
 
 
@@ -1084,12 +1503,25 @@ print(
 
 
 # ============================================================
-# 27. CREATE PNG
+# 32. CREATE GREEN COVER MAP
 # ============================================================
 
 print()
-print(
-    "Creating Green Cover PNG..."
+print("=" * 70)
+print("CREATING GREEN COVER PNG")
+print("=" * 70)
+
+
+green_map = np.where(
+
+    np.isfinite(
+        GREEN_FRACTION_GRID
+    ),
+
+    GREEN_FRACTION_GRID,
+
+    np.nan
+
 )
 
 
@@ -1100,30 +1532,48 @@ plt.figure(
 
 plt.imshow(
 
-    GREEN_PERCENT_GRID,
+    green_map,
 
-    cmap="YlGn",
+    cmap="RdYlGn",
 
     vmin=0,
 
-    vmax=100
+    vmax=1
+
 )
 
 
 plt.colorbar(
-    label="Green Cover (%)"
+    label="Green Cover Fraction"
+)
+
+
+plt.contour(
+
+    GREEN_FRACTION_GRID >= 0.5,
+
+    levels=[0.5],
+
+    linewidths=1.5
+
 )
 
 
 plt.title(
+
     "Nagpur Sentinel-2 Green Cover\n"
-    f"Scene Date: {SCENE_DATE}"
+
+    f"Scene Date: {SCENE_DATE}\n"
+
+    f"NDVI Threshold: {NDVI_THRESHOLD}"
+
 )
 
 
 plt.xlabel(
     "100m Grid"
 )
+
 
 plt.ylabel(
     "100m Grid"
@@ -1140,20 +1590,31 @@ plt.savefig(
     dpi=300,
 
     bbox_inches="tight"
+
 )
 
 
 plt.close()
 
 
+print()
+print(
+    "Green Cover PNG saved:"
+)
+
+print(
+    PNG_FILE
+)
+
+
 # ============================================================
-# 28. FINAL OUTPUT
+# 33. FINAL RESULTS
 # ============================================================
 
 print()
-print("=" * 65)
-print("              GREEN COVER COMPLETED")
-print("=" * 65)
+print("=" * 70)
+print("             GREEN COVER ANALYSIS COMPLETED")
+print("=" * 70)
 
 print()
 
@@ -1163,48 +1624,90 @@ print(
 )
 
 print(
-    "Scene date:",
+    "Product:",
+    "Sentinel-2 L2A"
+)
+
+print(
+    "Selected Scene Date:",
     SCENE_DATE
 )
 
 print(
-    "Cloud cover:",
-    CLOUD_COVER,
+    "Cloud Cover:",
+    round(
+        CLOUD_COVER,
+        2
+    ),
     "%"
 )
 
 print(
-    "NDVI threshold:",
-    GREEN_NDVI_THRESHOLD
+    "NDVI Threshold:",
+    NDVI_THRESHOLD
 )
 
 print(
-    "Spatial records:",
+    "Spatial Records:",
     len(df)
 )
 
 print(
-    "Green-cover area:",
+    "Processed Area (ha):",
     round(
-        green_area_ha,
+        processed_area_ha,
         2
-    ),
-    "ha"
+    )
 )
 
 print(
-    "Green-cover percentage:",
+    "Green Cover Area (ha):",
     round(
-        green_percentage,
+        green_cover_area_ha,
+        2
+    )
+)
+
+print(
+    "Green Cover Percentage:",
+    round(
+        green_cover_percent,
         2
     ),
     "%"
 )
 
-print()
-print("FILES CREATED")
+print(
+    "Mean NDVI:",
+    round(
+        mean_ndvi,
+        4
+    )
+)
+
+print(
+    "Minimum NDVI:",
+    round(
+        min_ndvi,
+        4
+    )
+)
+
+print(
+    "Maximum NDVI:",
+    round(
+        max_ndvi,
+        4
+    )
+)
 
 print()
+print("=" * 70)
+print("FILES CREATED")
+print("=" * 70)
+
+print()
+
 print(
     "1. Spatial CSV:"
 )
@@ -1214,6 +1717,7 @@ print(
 )
 
 print()
+
 print(
     "2. Summary CSV:"
 )
@@ -1223,6 +1727,7 @@ print(
 )
 
 print()
+
 print(
     "3. Green Cover PNG:"
 )
@@ -1232,13 +1737,13 @@ print(
 )
 
 print()
-print(
-    "Google Earth Engine: NOT USED"
-)
 
 print(
-    "GeoJSON boundary: NOT REQUIRED"
+    "Data Source:",
+    "Microsoft Planetary Computer"
 )
 
 print()
-print("=" * 65)
+print("=" * 70)
+print("GREEN COVER SCRIPT FINISHED SUCCESSFULLY")
+print("=" * 70)

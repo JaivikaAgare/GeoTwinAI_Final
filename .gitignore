@@ -53,3 +53,6 @@ output/processed/*_LULC_Clean.csv
 # Large dated/generated copies
 output/processed/*_Spatial_Clean_*.csv
 output/processed/*_LULC_Clean_*.csv
+output/Nagpur_Interactive_Map.html
+output/maps/Nagpur_Interactive_Map.html
+

@@ -1,6 +1,10 @@
 # ============================================================
 # GEOTWINAI
+<<<<<<< HEAD
 # PROFESSIONAL SMART CITY REPORT GENERATOR
+=======
+# PROFESSIONAL REPORT GENERATOR
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 #
 # Project:
 # AI-Powered Digital Twin for Smart Cities
@@ -8,6 +12,7 @@
 # Study Area:
 # Nagpur, Maharashtra
 #
+<<<<<<< HEAD
 # Includes:
 # Infrastructure
 # Sentinel-2
@@ -33,18 +38,33 @@ import os
 import glob
 import warnings
 
+=======
+# Output:
+# output/reports/GeoTwinAI_Nagpur_Professional_Report.pdf
+# ============================================================
+
+import os
+import warnings
+
+import numpy as np
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 import pandas as pd
 import matplotlib.pyplot as plt
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
+<<<<<<< HEAD
 from reportlab.lib.styles import (
     getSampleStyleSheet,
     ParagraphStyle
 )
 from reportlab.lib.units import mm
 
+=======
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 from reportlab.platypus import (
     SimpleDocTemplate,
     Paragraph,
@@ -52,15 +72,23 @@ from reportlab.platypus import (
     Table,
     TableStyle,
     PageBreak,
+<<<<<<< HEAD
     Image,
     KeepTogether
+=======
+    Image
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 )
 
 warnings.filterwarnings("ignore")
 
 
 # ============================================================
+<<<<<<< HEAD
 # 1. PATHS
+=======
+# 1. PROJECT PATHS
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 BASE_DIR = os.path.dirname(
@@ -69,10 +97,14 @@ BASE_DIR = os.path.dirname(
     )
 )
 
+<<<<<<< HEAD
 OUTPUT_DIR = os.path.join(
     BASE_DIR,
     "output"
 )
+=======
+OUTPUT_DIR = os.path.join(BASE_DIR, "output")
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 PROCESSED_DIR = os.path.join(
     OUTPUT_DIR,
@@ -94,6 +126,7 @@ CHART_DIR = os.path.join(
     "report_charts"
 )
 
+<<<<<<< HEAD
 MAP_DIR = os.path.join(
     OUTPUT_DIR,
     "maps"
@@ -110,6 +143,10 @@ os.makedirs(
     exist_ok=True
 )
 
+=======
+os.makedirs(REPORT_DIR, exist_ok=True)
+os.makedirs(CHART_DIR, exist_ok=True)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 REPORT_FILE = os.path.join(
     REPORT_DIR,
@@ -118,7 +155,11 @@ REPORT_FILE = os.path.join(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 2. HELPERS
+=======
+# 2. HELPER FUNCTIONS
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 def find_file(folder, names):
@@ -128,10 +169,14 @@ def find_file(folder, names):
 
     for name in names:
 
+<<<<<<< HEAD
         path = os.path.join(
             folder,
             name
         )
+=======
+        path = os.path.join(folder, name)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
         if os.path.exists(path):
             return path
@@ -139,6 +184,7 @@ def find_file(folder, names):
     return None
 
 
+<<<<<<< HEAD
 def find_keyword_file(
     keywords
 ):
@@ -177,12 +223,15 @@ def find_keyword_file(
     return None
 
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 def safe_read_csv(path):
 
     if path is None:
         return None
 
     try:
+<<<<<<< HEAD
 
         return pd.read_csv(
             path
@@ -199,10 +248,35 @@ def safe_read_csv(path):
             "Reason:",
             e
         )
+=======
+        return pd.read_csv(path)
+
+    except Exception as e:
+
+        print("Could not read:")
+        print(path)
+        print("Reason:", e)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
         return None
 
 
+<<<<<<< HEAD
+=======
+def fmt(value, digits=2):
+
+    try:
+
+        if pd.isna(value):
+            return "N/A"
+
+        return f"{float(value):.{digits}f}"
+
+    except Exception:
+        return "N/A"
+
+
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 def count_rows(df):
 
     if df is None:
@@ -211,6 +285,7 @@ def count_rows(df):
     return len(df)
 
 
+<<<<<<< HEAD
 def fmt(
     value,
     digits=2
@@ -232,6 +307,9 @@ def safe_mean(
     df,
     column
 ):
+=======
+def safe_mean(df, column):
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
     if df is None:
         return None
@@ -252,6 +330,7 @@ def safe_mean(
         return values.mean()
 
     except Exception:
+<<<<<<< HEAD
 
         return None
 
@@ -356,12 +435,18 @@ def make_chart(
     return path
 
 
+=======
+        return None
+
+
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 # 3. START
 # ============================================================
 
 print()
 print("=" * 70)
+<<<<<<< HEAD
 print("       GEOTWINAI PROFESSIONAL REPORT GENERATOR")
 print("=" * 70)
 print()
@@ -376,12 +461,39 @@ print(
 # 4. LOCATE INFRASTRUCTURE
 # ============================================================
 
+=======
+print("        GEOTWINAI PROFESSIONAL REPORT GENERATOR")
+print("=" * 70)
+print()
+
+print("Project:")
+print(BASE_DIR)
+
+print()
+print("Output:")
+print(REPORT_FILE)
+
+
+# ============================================================
+# 4. LOCATE INFRASTRUCTURE DATASETS
+# ============================================================
+
+print()
+print("Locating datasets...")
+
+
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 building_file = find_file(
     PROCESSED_DIR,
     [
         "Nagpur_Building_Clean.csv",
         "Nagpur_Buildings_Clean.csv",
+<<<<<<< HEAD
         "Nagpur_Building_clean.csv"
+=======
+        "Nagpur_Building_clean.csv",
+        "Nagpur_building_clean.csv"
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     ]
 )
 
@@ -391,7 +503,12 @@ hospital_file = find_file(
     [
         "Nagpur_Hospital_Clean.csv",
         "Nagpur_Hospitals_Clean.csv",
+<<<<<<< HEAD
         "Nagpur_Hospital_clean.csv"
+=======
+        "Nagpur_Hospital_clean.csv",
+        "Nagpur_hospital_clean.csv"
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     ]
 )
 
@@ -401,7 +518,12 @@ school_file = find_file(
     [
         "Nagpur_School_Clean.csv",
         "Nagpur_Schools_Clean.csv",
+<<<<<<< HEAD
         "Nagpur_School_clean.csv"
+=======
+        "Nagpur_School_clean.csv",
+        "Nagpur_school_clean.csv"
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     ]
 )
 
@@ -411,7 +533,12 @@ park_file = find_file(
     [
         "Nagpur_Park_Clean.csv",
         "Nagpur_Parks_Clean.csv",
+<<<<<<< HEAD
         "Nagpur_Park_clean.csv"
+=======
+        "Nagpur_Park_clean.csv",
+        "Nagpur_park_clean.csv"
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     ]
 )
 
@@ -421,7 +548,12 @@ road_file = find_file(
     [
         "Nagpur_Road_Clean.csv",
         "Nagpur_Roads_Clean.csv",
+<<<<<<< HEAD
         "Nagpur_Road_clean.csv"
+=======
+        "Nagpur_Road_clean.csv",
+        "Nagpur_road_clean.csv"
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     ]
 )
 
@@ -431,13 +563,22 @@ water_file = find_file(
     [
         "Nagpur_Water_Bodies_Clean.csv",
         "Nagpur_Water_Body_Clean.csv",
+<<<<<<< HEAD
         "Nagpur_Water_Bodies_clean.csv"
+=======
+        "Nagpur_Water_Bodies_clean.csv",
+        "Nagpur_water_bodies_clean.csv"
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     ]
 )
 
 
 # ============================================================
+<<<<<<< HEAD
 # 5. SATELLITE FILES
+=======
+# 5. LOCATE SATELLITE DATASETS
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 all_bands_file = find_file(
@@ -458,6 +599,13 @@ all_bands_spatial_file = find_file(
 )
 
 
+<<<<<<< HEAD
+=======
+# ============================================================
+# 6. LOCATE SATELLITE INDEX FILES
+# ============================================================
+
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 builtup_summary_file = find_file(
     SATELLITE_DIR,
     [
@@ -487,6 +635,7 @@ lulc_summary_file = find_file(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 6. NEW FLOOD + HEATMAP DATA
 # ============================================================
 
@@ -501,6 +650,8 @@ heatmap_file = find_keyword_file(
 
 
 # ============================================================
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # 7. READ DATA
 # ============================================================
 
@@ -508,6 +659,7 @@ print()
 print("Reading datasets...")
 
 
+<<<<<<< HEAD
 buildings = safe_read_csv(
     building_file
 )
@@ -535,6 +687,21 @@ water = safe_read_csv(
 bands_summary = safe_read_csv(
     all_bands_file
 )
+=======
+buildings = safe_read_csv(building_file)
+
+hospitals = safe_read_csv(hospital_file)
+
+schools = safe_read_csv(school_file)
+
+parks = safe_read_csv(park_file)
+
+roads = safe_read_csv(road_file)
+
+water = safe_read_csv(water_file)
+
+bands_summary = safe_read_csv(all_bands_file)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 bands_spatial = safe_read_csv(
     all_bands_spatial_file
@@ -552,6 +719,7 @@ lulc_summary = safe_read_csv(
     lulc_summary_file
 )
 
+<<<<<<< HEAD
 flood_data = safe_read_csv(
     flood_file
 )
@@ -596,6 +764,35 @@ flood_count = count_rows(
 heatmap_count = count_rows(
     heatmap_data
 )
+=======
+
+# ============================================================
+# 8. BASIC STATISTICS
+# ============================================================
+
+building_count = count_rows(buildings)
+
+hospital_count = count_rows(hospitals)
+
+school_count = count_rows(schools)
+
+park_count = count_rows(parks)
+
+road_count = count_rows(roads)
+
+water_count = count_rows(water)
+
+
+print()
+print("Infrastructure records:")
+
+print("Buildings:", building_count)
+print("Hospitals:", hospital_count)
+print("Schools:", school_count)
+print("Parks:", park_count)
+print("Roads:", road_count)
+print("Water Bodies:", water_count)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 
 # ============================================================
@@ -625,6 +822,7 @@ if bands_summary is not None:
                 row["Scene_Date"]
             )
 
+<<<<<<< HEAD
         if (
             "Cloud_Cover_Percent"
             in bands_summary.columns
@@ -634,6 +832,12 @@ if bands_summary is not None:
                 row[
                     "Cloud_Cover_Percent"
                 ],
+=======
+        if "Cloud_Cover_Percent" in bands_summary.columns:
+
+            cloud_cover = fmt(
+                row["Cloud_Cover_Percent"],
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
                 2
             )
 
@@ -659,6 +863,13 @@ if bands_summary is not None:
             )
 
 
+<<<<<<< HEAD
+=======
+# ============================================================
+# 10. CALCULATE INDICES FROM SPATIAL DATA IF NEEDED
+# ============================================================
+
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 if bands_spatial is not None:
 
     if mean_ndvi == "N/A":
@@ -669,11 +880,15 @@ if bands_spatial is not None:
         )
 
         if value is not None:
+<<<<<<< HEAD
 
             mean_ndvi = fmt(
                 value,
                 4
             )
+=======
+            mean_ndvi = fmt(value, 4)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 
     if mean_ndbi == "N/A":
@@ -684,11 +899,15 @@ if bands_spatial is not None:
         )
 
         if value is not None:
+<<<<<<< HEAD
 
             mean_ndbi = fmt(
                 value,
                 4
             )
+=======
+            mean_ndbi = fmt(value, 4)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 
     if mean_ndwi == "N/A":
@@ -699,6 +918,7 @@ if bands_spatial is not None:
         )
 
         if value is not None:
+<<<<<<< HEAD
 
             mean_ndwi = fmt(
                 value,
@@ -714,6 +934,17 @@ print()
 print(
     "Creating infrastructure chart..."
 )
+=======
+            mean_ndwi = fmt(value, 4)
+
+
+# ============================================================
+# 11. INFRASTRUCTURE CHART
+# ============================================================
+
+print()
+print("Creating infrastructure chart...")
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 
 categories = [
@@ -736,16 +967,59 @@ values = [
 ]
 
 
+<<<<<<< HEAD
 INFRA_CHART = make_chart(
     categories,
     values,
     "Nagpur Urban Infrastructure Dataset Summary",
+=======
+INFRA_CHART = os.path.join(
+    CHART_DIR,
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     "infrastructure_summary.png"
 )
 
 
+<<<<<<< HEAD
 # ============================================================
 # 11. NDVI CHART
+=======
+plt.figure(
+    figsize=(10, 6)
+)
+
+plt.bar(
+    categories,
+    values
+)
+
+plt.title(
+    "Nagpur Infrastructure Dataset Summary"
+)
+
+plt.ylabel(
+    "Number of Records"
+)
+
+plt.xticks(
+    rotation=30,
+    ha="right"
+)
+
+plt.tight_layout()
+
+plt.savefig(
+    INFRA_CHART,
+    dpi=200,
+    bbox_inches="tight"
+)
+
+plt.close()
+
+
+# ============================================================
+# 12. NDVI CHART
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 NDVI_CHART = None
@@ -760,15 +1034,31 @@ if bands_spatial is not None:
             errors="coerce"
         ).dropna()
 
+<<<<<<< HEAD
         if len(ndvi_values) > 0:
 
+=======
+
+        if len(ndvi_values) > 0:
+
+            print(
+                "Creating NDVI distribution chart..."
+            )
+
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
             NDVI_CHART = os.path.join(
                 CHART_DIR,
                 "ndvi_distribution.png"
             )
 
+<<<<<<< HEAD
             plt.figure(
                 figsize=(10, 5.5)
+=======
+
+            plt.figure(
+                figsize=(10, 6)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
             )
 
             plt.hist(
@@ -800,6 +1090,7 @@ if bands_spatial is not None:
 
 
 # ============================================================
+<<<<<<< HEAD
 # 12. FLOOD CHART
 # ============================================================
 
@@ -943,6 +1234,13 @@ print()
 print(
     "Building professional PDF..."
 )
+=======
+# 13. PDF DOCUMENT
+# ============================================================
+
+print()
+print("Building professional PDF...")
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 
 doc = SimpleDocTemplate(
@@ -962,7 +1260,11 @@ doc = SimpleDocTemplate(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 15. STYLES
+=======
+# 14. STYLES
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 styles = getSampleStyleSheet()
@@ -1016,6 +1318,7 @@ heading_style = ParagraphStyle(
 )
 
 
+<<<<<<< HEAD
 subheading_style = ParagraphStyle(
 
     "SubHeading",
@@ -1032,6 +1335,8 @@ subheading_style = ParagraphStyle(
 )
 
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 body_style = ParagraphStyle(
 
     "BodyCustom",
@@ -1072,13 +1377,21 @@ story = []
 
 
 # ============================================================
+<<<<<<< HEAD
 # 16. COVER PAGE
+=======
+# 15. COVER PAGE
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 story.append(
     Spacer(
         1,
+<<<<<<< HEAD
         30 * mm
+=======
+        35 * mm
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     )
 )
 
@@ -1102,7 +1415,11 @@ story.append(
 story.append(
     Spacer(
         1,
+<<<<<<< HEAD
         8 * mm
+=======
+        10 * mm
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     )
 )
 
@@ -1118,7 +1435,11 @@ story.append(
 story.append(
     Spacer(
         1,
+<<<<<<< HEAD
         18 * mm
+=======
+        20 * mm
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     )
 )
 
@@ -1138,7 +1459,11 @@ cover_data = [
 
     [
         Paragraph(
+<<<<<<< HEAD
             "<b>Satellite</b>",
+=======
+            "<b>Satellite Dataset</b>",
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
             body_style
         ),
         Paragraph(
@@ -1160,7 +1485,11 @@ cover_data = [
 
     [
         Paragraph(
+<<<<<<< HEAD
             "<b>Spatial Resolution</b>",
+=======
+            "<b>Analysis Resolution</b>",
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
             body_style
         ),
         Paragraph(
@@ -1178,6 +1507,7 @@ cover_data = [
             scene_date,
             body_style
         )
+<<<<<<< HEAD
     ],
 
     [
@@ -1189,6 +1519,8 @@ cover_data = [
             "GeoTwinAI Automated Report Generator",
             body_style
         )
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     ]
 
 ]
@@ -1263,13 +1595,18 @@ story.append(
 story.append(
     Spacer(
         1,
+<<<<<<< HEAD
         18 * mm
+=======
+        20 * mm
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     )
 )
 
 
 story.append(
     Paragraph(
+<<<<<<< HEAD
 
         "GeoTwinAI integrates geospatial infrastructure "
         "datasets, satellite remote sensing, environmental "
@@ -1277,6 +1614,12 @@ story.append(
         "machine learning to support smart-city planning "
         "and decision-making.",
 
+=======
+        "GeoTwinAI integrates geospatial datasets, "
+        "satellite-derived indicators and machine learning "
+        "to support urban planning and smart-city "
+        "decision-making.",
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
         center_style
     )
 )
@@ -1288,7 +1631,11 @@ story.append(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 17. EXECUTIVE SUMMARY
+=======
+# 16. EXECUTIVE SUMMARY
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 story.append(
@@ -1300,11 +1647,15 @@ story.append(
 
 
 executive_text = f"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 GeoTwinAI is an AI-powered geospatial decision-support
 platform developed for urban planning and smart-city
 analysis in Nagpur, Maharashtra.
 
+<<<<<<< HEAD
 The platform integrates infrastructure datasets,
 Sentinel-2 satellite observations, environmental indices,
 flood-risk analysis, heatmap analysis and machine-learning
@@ -1323,6 +1674,24 @@ assessment.
 
 The final workflow connects GIS visualization, machine
 learning, automated data processing and Power BI analytics.
+=======
+The system integrates infrastructure datasets with
+Sentinel-2 satellite observations to provide a spatial
+understanding of the urban environment.
+
+The selected satellite scene has a recorded cloud cover
+of {cloud_cover}% and a scene date of {scene_date}.
+
+The platform analyses vegetation, built-up areas and
+water-related characteristics using NDVI, NDBI and NDWI.
+
+Infrastructure datasets include buildings, hospitals,
+schools, parks, roads and water bodies.
+
+The final system combines GIS visualization, machine
+learning and Power BI analytics into a unified urban
+planning workflow.
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 """
 
 
@@ -1335,7 +1704,11 @@ story.append(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 18. PROJECT OBJECTIVES
+=======
+# 17. PROJECT OBJECTIVES
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 story.append(
@@ -1354,6 +1727,7 @@ objectives = [
 
     "Analyse vegetation and environmental conditions.",
 
+<<<<<<< HEAD
     "Analyse built-up and water-related characteristics.",
 
     "Map important urban infrastructure.",
@@ -1362,15 +1736,25 @@ objectives = [
 
     "Identify heat-related urban hotspots.",
 
+=======
+    "Identify built-up and water-related characteristics.",
+
+    "Map important urban infrastructure.",
+
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     "Create machine-learning-based urban priority analysis.",
 
     "Provide interactive GIS visualization.",
 
     "Provide analytical dashboards through Power BI.",
 
+<<<<<<< HEAD
     "Support data-driven urban planning decisions.",
 
     "Create an extensible framework for future data updates."
+=======
+    "Support data-driven urban planning decisions."
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 ]
 
@@ -1386,7 +1770,11 @@ for objective in objectives:
 
 
 # ============================================================
+<<<<<<< HEAD
 # 19. DATA SOURCES
+=======
+# 18. DATA SOURCES
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 story.append(
@@ -1449,6 +1837,7 @@ data_source_table = Table(
         ],
 
         [
+<<<<<<< HEAD
             "All Sentinel-2 Bands",
             "Multi-spectral analysis"
         ],
@@ -1474,6 +1863,8 @@ data_source_table = Table(
         ],
 
         [
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
             "Machine Learning",
             "Urban priority prediction"
         ],
@@ -1541,7 +1932,11 @@ story.append(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 20. INFRASTRUCTURE STATISTICS
+=======
+# 19. INFRASTRUCTURE STATISTICS
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 story.append(
@@ -1654,21 +2049,33 @@ story.append(
 )
 
 
+<<<<<<< HEAD
 if os.path.exists(
     INFRA_CHART
 ):
+=======
+if os.path.exists(INFRA_CHART):
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
     story.append(
         Image(
             INFRA_CHART,
             width=165 * mm,
+<<<<<<< HEAD
             height=90 * mm
+=======
+            height=95 * mm
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
         )
     )
 
 
 # ============================================================
+<<<<<<< HEAD
 # 21. SATELLITE ANALYSIS
+=======
+# 20. SATELLITE ANALYSIS
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 story.append(
@@ -1685,7 +2092,10 @@ story.append(
 
 
 satellite_text = f"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 The satellite analysis uses Sentinel-2 Level-2A imagery
 obtained through Microsoft Planetary Computer.
 
@@ -1695,8 +2105,13 @@ cloud cover of {cloud_cover}%.
 A common 10-metre spatial reference grid is used for
 integrated multi-band analysis.
 
+<<<<<<< HEAD
 The processed Sentinel-2 dataset includes B01, B02, B03,
 B04, B05, B06, B07, B08, B8A, B09, B11 and B12.
+=======
+The processed dataset includes B01, B02, B03, B04, B05,
+B06, B07, B08, B8A, B09, B11 and B12.
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 """
 
 
@@ -1709,7 +2124,11 @@ story.append(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 22. SPECTRAL INDICES
+=======
+# 21. SPECTRAL INDICES
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 story.append(
@@ -1816,13 +2235,21 @@ if NDVI_CHART is not None:
         Image(
             NDVI_CHART,
             width=165 * mm,
+<<<<<<< HEAD
             height=90 * mm
+=======
+            height=95 * mm
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
         )
     )
 
 
 # ============================================================
+<<<<<<< HEAD
 # 23. ALL-BAND ANALYSIS
+=======
+# 22. ALL BAND ANALYSIS
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 story.append(
@@ -1839,7 +2266,10 @@ story.append(
 
 
 all_band_text = """
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 The all-band Sentinel-2 dataset preserves spectral
 information required for environmental and urban analysis.
 
@@ -1869,8 +2299,13 @@ B11 - Short-Wave Infrared
 
 B12 - Short-Wave Infrared
 
+<<<<<<< HEAD
 The combined spectral information supports vegetation,
 water, soil, built-up and land-cover analysis.
+=======
+These bands support vegetation, water, soil, built-up
+and land-cover analysis.
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 """
 
 
@@ -1883,11 +2318,16 @@ story.append(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 24. LULC / BUILT-UP / GREEN COVER
+=======
+# 23. MACHINE LEARNING
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 story.append(
     Paragraph(
+<<<<<<< HEAD
         "8. Land Use, Built-up Area and Green Cover",
         heading_style
     )
@@ -2135,12 +2575,16 @@ story.append(
 story.append(
     Paragraph(
         "11. Machine Learning Analysis",
+=======
+        "8. Machine Learning Analysis",
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
         heading_style
     )
 )
 
 
 ml_text = """
+<<<<<<< HEAD
 
 The machine-learning component of GeoTwinAI is designed
 to classify urban areas according to planning priority.
@@ -2151,13 +2595,30 @@ learning dataset.
 
 The trained model can generate priority predictions such
 as High, Medium and Low.
+=======
+The machine-learning component of GeoTwinAI is designed
+to classify urban areas according to planning priority.
+
+The feature-engineering stage combines infrastructure
+and environmental attributes into a machine-learning
+dataset.
+
+The trained model can generate urban priority
+predictions such as High, Medium and Low.
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 These predictions can support identification of areas
 requiring additional infrastructure or environmental
 attention.
 
+<<<<<<< HEAD
 Model performance should be evaluated using accuracy,
 precision, recall and F1-score.
+=======
+Model performance should be evaluated using appropriate
+classification metrics such as accuracy, precision,
+recall and F1-score.
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 """
 
 
@@ -2170,11 +2631,16 @@ story.append(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 28. INTERACTIVE GIS MAP
+=======
+# 24. DIGITAL TWIN WORKFLOW
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 story.append(
     Paragraph(
+<<<<<<< HEAD
         "12. Interactive GIS Visualization",
         heading_style
     )
@@ -2229,6 +2695,9 @@ if os.path.exists(map_file):
 story.append(
     Paragraph(
         "13. GeoTwinAI Workflow",
+=======
+        "9. GeoTwinAI Workflow",
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
         heading_style
     )
 )
@@ -2240,6 +2709,7 @@ workflow = [
 
     "Data cleaning",
 
+<<<<<<< HEAD
     "Satellite data acquisition",
 
     "Satellite preprocessing",
@@ -2255,6 +2725,11 @@ workflow = [
     "Flood-risk analysis",
 
     "Heatmap analysis",
+=======
+    "Satellite processing",
+
+    "Spectral index generation",
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
     "Feature engineering",
 
@@ -2266,9 +2741,13 @@ workflow = [
 
     "Power BI dashboard",
 
+<<<<<<< HEAD
     "Urban planning decision support",
 
     "Future automated data updates"
+=======
+    "Urban planning decision support"
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 ]
 
@@ -2287,7 +2766,11 @@ for i, step in enumerate(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 30. KEY FINDINGS
+=======
+# 25. KEY FINDINGS
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 story.append(
@@ -2297,7 +2780,11 @@ story.append(
 
 story.append(
     Paragraph(
+<<<<<<< HEAD
         "14. Key Findings",
+=======
+        "10. Key Findings",
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
         heading_style
     )
 )
@@ -2305,7 +2792,11 @@ story.append(
 
 findings = [
 
+<<<<<<< HEAD
     f"The infrastructure dataset contains "
+=======
+    f"The processed infrastructure datasets contain "
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     f"{building_count} building records.",
 
     f"The healthcare dataset contains "
@@ -2317,15 +2808,19 @@ findings = [
     f"The parks dataset contains "
     f"{park_count} park records.",
 
+<<<<<<< HEAD
     f"The road dataset contains "
     f"{road_count} records.",
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     f"The water-body dataset contains "
     f"{water_count} records.",
 
     f"The selected Sentinel-2 scene has "
     f"{cloud_cover}% reported cloud cover.",
 
+<<<<<<< HEAD
     f"The mean NDVI is {mean_ndvi}.",
 
     f"The mean NDBI is {mean_ndbi}.",
@@ -2337,6 +2832,16 @@ findings = [
 
     f"Heatmap records detected: "
     f"{heatmap_count}."
+=======
+    f"The mean NDVI is "
+    f"{mean_ndvi}.",
+
+    f"The mean NDBI is "
+    f"{mean_ndbi}.",
+
+    f"The mean NDWI is "
+    f"{mean_ndwi}."
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 ]
 
@@ -2352,12 +2857,20 @@ for finding in findings:
 
 
 # ============================================================
+<<<<<<< HEAD
 # 31. RECOMMENDATIONS
+=======
+# 26. RECOMMENDATIONS
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 story.append(
     Paragraph(
+<<<<<<< HEAD
         "15. Recommendations",
+=======
+        "11. Recommendations",
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
         heading_style
     )
 )
@@ -2373,6 +2886,7 @@ recommendations = [
 
     "Use NDBI to identify highly built-up areas.",
 
+<<<<<<< HEAD
     "Use NDWI and water-body information for "
     "water-resource planning.",
 
@@ -2382,12 +2896,18 @@ recommendations = [
     "Use heatmap analysis to identify potential "
     "urban hotspots.",
 
+=======
+    "Use NDWI and water-body data to support "
+    "water-resource planning.",
+
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     "Use ML priority classifications to identify "
     "areas requiring planning attention.",
 
     "Use Power BI for executive-level monitoring "
     "and comparative analysis.",
 
+<<<<<<< HEAD
     "Use multi-date satellite observations to "
     "monitor changes over time.",
 
@@ -2396,6 +2916,13 @@ recommendations = [
 
     "Maintain year/date information so that future "
     "observations can be compared with historical data."
+=======
+    "Periodically update Sentinel-2 observations "
+    "to monitor urban environmental change.",
+
+    "Integrate official MRSAC datasets wherever "
+    "available for production-level analysis."
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 ]
 
@@ -2411,12 +2938,20 @@ for recommendation in recommendations:
 
 
 # ============================================================
+<<<<<<< HEAD
 # 32. LIMITATIONS
+=======
+# 27. LIMITATIONS
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 story.append(
     Paragraph(
+<<<<<<< HEAD
         "16. Limitations",
+=======
+        "12. Limitations",
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
         heading_style
     )
 )
@@ -2433,17 +2968,26 @@ limitations = [
     "Cloud-cover metadata is scene-level and does not "
     "necessarily represent cloud conditions at every pixel.",
 
+<<<<<<< HEAD
     "Flood and heatmap outputs depend on the underlying "
     "input datasets and processing methods.",
+=======
+    "The current analysis uses one selected best-available "
+    "scene rather than a full temporal time series.",
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
     "Machine-learning predictions depend on the quality "
     "and representativeness of the training dataset.",
 
     "Infrastructure records should be validated against "
+<<<<<<< HEAD
     "authoritative datasets before operational deployment.",
 
     "Future-date information cannot be known until new "
     "observations or datasets become available."
+=======
+    "authoritative datasets before operational deployment."
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 ]
 
@@ -2459,7 +3003,11 @@ for limitation in limitations:
 
 
 # ============================================================
+<<<<<<< HEAD
 # 33. CONCLUSION
+=======
+# 28. CONCLUSION
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 story.append(
@@ -2469,13 +3017,18 @@ story.append(
 
 story.append(
     Paragraph(
+<<<<<<< HEAD
         "17. Conclusion",
+=======
+        "13. Conclusion",
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
         heading_style
     )
 )
 
 
 conclusion = """
+<<<<<<< HEAD
 
 GeoTwinAI provides a unified framework for combining
 geospatial infrastructure data, satellite remote sensing,
@@ -2493,12 +3046,29 @@ assessment.
 
 The interactive GIS map provides detailed spatial
 exploration, while Power BI can provide higher-level
+=======
+GeoTwinAI provides a unified framework for combining
+geospatial infrastructure data, satellite remote sensing
+and machine learning for smart-city planning.
+
+The integration of Sentinel-2 spectral information,
+environmental indices, infrastructure datasets and
+machine-learning predictions provides a spatially
+oriented view of urban conditions.
+
+The interactive GIS map provides detailed spatial
+exploration, while Power BI provides higher-level
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 analytical dashboards for decision-makers.
 
 Future development can include multi-date satellite
 monitoring, improved administrative boundaries, official
 MRSAC datasets, advanced machine-learning models and
+<<<<<<< HEAD
 automated acquisition of newly available observations.
+=======
+automated data updates.
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 The overall system can therefore serve as a foundation
 for an AI-enabled urban planning and decision-support
@@ -2515,12 +3085,20 @@ story.append(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 34. TECHNICAL INFORMATION
+=======
+# 29. TECHNICAL INFORMATION
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 story.append(
     Paragraph(
+<<<<<<< HEAD
         "18. Technical Information",
+=======
+        "14. Technical Information",
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
         heading_style
     )
 )
@@ -2534,6 +3112,7 @@ technical = [
 
     ["Product", "Sentinel-2 Level-2A"],
 
+<<<<<<< HEAD
     [
         "Satellite Source",
         "Microsoft Planetary Computer"
@@ -2578,6 +3157,21 @@ technical = [
         "Report",
         "Professional PDF"
     ]
+=======
+    ["Satellite Source", "Microsoft Planetary Computer"],
+
+    ["Spatial Reference Grid", "10 metres"],
+
+    ["Indices", "NDVI, NDBI, NDWI"],
+
+    ["GIS Visualization", "Interactive HTML Map"],
+
+    ["Dashboard", "Microsoft Power BI"],
+
+    ["Machine Learning", "Urban Priority Classification"],
+
+    ["Report Format", "PDF"]
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 ]
 
@@ -2642,6 +3236,7 @@ story.append(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 35. BUILD PDF
 # ============================================================
 
@@ -2649,17 +3244,29 @@ print()
 print(
     "Generating PDF..."
 )
+=======
+# 30. BUILD PDF
+# ============================================================
+
+print()
+print("Generating PDF...")
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 
 try:
 
+<<<<<<< HEAD
     doc.build(
         story
     )
+=======
+    doc.build(story)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 except Exception as e:
 
     print()
+<<<<<<< HEAD
     print(
         "ERROR WHILE CREATING PDF"
     )
@@ -2667,18 +3274,27 @@ except Exception as e:
     print(
         e
     )
+=======
+    print("ERROR WHILE CREATING PDF")
+    print(e)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
     raise
 
 
 # ============================================================
+<<<<<<< HEAD
 # 36. FINAL
+=======
+# 31. FINAL MESSAGE
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 print()
 print("=" * 70)
 print("       PROFESSIONAL REPORT COMPLETED")
 print("=" * 70)
+<<<<<<< HEAD
 print()
 
 print(
@@ -2702,3 +3318,24 @@ print(
 print()
 
 print("=" * 70)
+=======
+
+print()
+
+print("Report created:")
+
+print(REPORT_FILE)
+
+print()
+
+print("Report folder:")
+
+print(REPORT_DIR)
+
+print()
+
+print("=" * 70)
+
+
+
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe

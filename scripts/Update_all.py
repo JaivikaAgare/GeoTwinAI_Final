@@ -539,7 +539,11 @@ print("=" * 90)
 
 clean_success = run_script(
     "Complete Data Cleaning",
+<<<<<<< HEAD
     "Satellite_1/data_cleaning.py"
+=======
+    "scripts/clean_data.py"
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 )
 
 
@@ -870,4 +874,8 @@ print(
 print()
 print("=" * 90)
 print("                    DONE")
+<<<<<<< HEAD
 print("=" * 90)
+=======
+print("=" * 90)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe

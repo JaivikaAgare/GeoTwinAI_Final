@@ -1,6 +1,9 @@
 import os
 import warnings
+<<<<<<< HEAD
 from datetime import datetime, timezone
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 import numpy as np
 import pandas as pd
@@ -14,7 +17,10 @@ from rasterio.transform import xy
 from pystac_client import Client
 import planetary_computer
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 warnings.filterwarnings("ignore")
 
 
@@ -64,11 +70,22 @@ PNG_FILE = os.path.join(
 # 3. NAGPUR SEARCH AREA
 # ============================================================
 
+<<<<<<< HEAD
 NAGPUR_BBOX = [
     78.95,
     20.95,
     79.25,
     21.25
+=======
+# Nagpur approximate bounding box.
+# This is a search/processing area, NOT a political boundary.
+
+NAGPUR_BBOX = [
+    78.95,   # West
+    20.95,   # South
+    79.25,   # East
+    21.25    # North
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 ]
 
 
@@ -77,6 +94,7 @@ NAGPUR_BBOX = [
 # ============================================================
 
 START_DATE = "2026-01-01T00:00:00Z"
+<<<<<<< HEAD
 
 # Automatically use current UTC date/time.
 # So you don't have to manually change this
@@ -87,6 +105,9 @@ END_DATE = datetime.now(
 ).strftime(
     "%Y-%m-%dT%H:%M:%SZ"
 )
+=======
+END_DATE = "2026-08-22T23:59:59Z"
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 MAX_CLOUD = 20
 
@@ -95,6 +116,13 @@ MAX_CLOUD = 20
 # 5. SPATIAL AGGREGATION
 # ============================================================
 
+<<<<<<< HEAD
+=======
+# Sentinel-2 B02/B03/B04/B08 = 10m.
+#
+# 10 x 10 pixels = approximately 100m grid.
+
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 FACTOR = 10
 
 
@@ -103,9 +131,15 @@ FACTOR = 10
 # ============================================================
 
 print()
+<<<<<<< HEAD
 print("=" * 70)
 print("              NAGPUR SENTINEL-2 NDVI")
 print("=" * 70)
+=======
+print("=" * 60)
+print("          NAGPUR SENTINEL-2 NDVI")
+print("=" * 60)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 print()
 print("Project:")
@@ -115,6 +149,7 @@ print()
 print("Output:")
 print(OUTPUT_DIR)
 
+<<<<<<< HEAD
 print()
 print("Search Start Date:")
 print(START_DATE)
@@ -127,15 +162,21 @@ print()
 print("Maximum Cloud Cover:")
 print(f"{MAX_CLOUD}%")
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 # ============================================================
 # 7. CONNECT TO PLANETARY COMPUTER
 # ============================================================
 
 print()
+<<<<<<< HEAD
 print("=" * 70)
 print("CONNECTING TO PLANETARY COMPUTER")
 print("=" * 70)
+=======
+print("Connecting to Sentinel-2 data source...")
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 STAC_URL = (
     "https://planetarycomputer.microsoft.com/api/stac/v1"
@@ -145,11 +186,15 @@ catalog = Client.open(
     STAC_URL
 )
 
+<<<<<<< HEAD
 print()
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 print("Connection successful.")
 
 
 # ============================================================
+<<<<<<< HEAD
 # 8. SEARCH SENTINEL-2 IMAGERY
 # ============================================================
 
@@ -160,6 +205,15 @@ print("=" * 70)
 
 search = catalog.search(
 
+=======
+# 8. SEARCH SENTINEL-2
+# ============================================================
+
+print()
+print("Searching Sentinel-2 imagery...")
+
+search = catalog.search(
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     collections=[
         "sentinel-2-l2a"
     ],
@@ -192,6 +246,7 @@ print(
 )
 
 
+<<<<<<< HEAD
 # ============================================================
 # 9. CHECK SCENES
 # ============================================================
@@ -202,10 +257,17 @@ if len(items) == 0:
         "No Sentinel-2 scenes found for "
         "the selected date range and cloud "
         "cover limit."
+=======
+if len(items) == 0:
+
+    raise RuntimeError(
+        "No Sentinel-2 scenes found."
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     )
 
 
 # ============================================================
+<<<<<<< HEAD
 # 10. SORT BY LATEST DATE
 # ============================================================
 
@@ -242,10 +304,22 @@ def get_scene_datetime(item):
 items.sort(
     key=get_scene_datetime,
     reverse=True
+=======
+# 9. SORT BY CLOUD COVER
+# ============================================================
+
+items.sort(
+    key=lambda item:
+        item.properties.get(
+            "eo:cloud_cover",
+            100
+        )
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 )
 
 
 # ============================================================
+<<<<<<< HEAD
 # 11. SHOW LATEST AVAILABLE SCENES
 # ============================================================
 
@@ -276,33 +350,63 @@ for index, scene in enumerate(
 
 
     cloud = scene.properties.get(
+=======
+# 10. SHOW AVAILABLE SCENES
+# ============================================================
+
+print()
+print("Available scenes:")
+
+for item in items[:10]:
+
+    date = item.datetime.strftime(
+        "%Y-%m-%d"
+    )
+
+    cloud = item.properties.get(
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
         "eo:cloud_cover",
         100
     )
 
+<<<<<<< HEAD
 
     print(
         f"{index:02d}. "
         f"{scene_date} | "
         f"Cloud: {cloud}% | "
         f"{scene.id}"
+=======
+    print(
+        f"{date} | "
+        f"Cloud: {cloud}% | "
+        f"{item.id}"
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     )
 
 
 # ============================================================
+<<<<<<< HEAD
 # 12. SELECT LATEST SCENE
+=======
+# 11. SELECT BEST SCENE
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 item = items[0]
 
+<<<<<<< HEAD
 
 # Sign Planetary Computer asset URLs.
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 item = planetary_computer.sign(
     item
 )
 
 
+<<<<<<< HEAD
 SCENE_DATE = (
     item.datetime.strftime(
         "%Y-%m-%d"
@@ -318,10 +422,22 @@ CLOUD_COVER = (
 )
 
 
+=======
+SCENE_DATE = item.datetime.strftime(
+    "%Y-%m-%d"
+)
+
+CLOUD_COVER = item.properties.get(
+    "eo:cloud_cover",
+    100
+)
+
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 SCENE_ID = item.id
 
 
 print()
+<<<<<<< HEAD
 print("=" * 70)
 print("SELECTED SCENE")
 print("=" * 70)
@@ -344,6 +460,16 @@ print(SCENE_ID)
 
 # ============================================================
 # 13. FUNCTION TO READ SENTINEL-2 BAND
+=======
+print("Selected scene:")
+print("Date:", SCENE_DATE)
+print("Cloud cover:", CLOUD_COVER, "%")
+print("Scene:", SCENE_ID)
+
+
+# ============================================================
+# 12. FUNCTION TO READ SENTINEL-2 BAND
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 def read_band(
@@ -354,12 +480,19 @@ def read_band(
         band_name
     )
 
+<<<<<<< HEAD
 
     if asset is None:
 
         raise RuntimeError(
             f"Sentinel-2 asset not found: "
             f"{band_name}"
+=======
+    if asset is None:
+
+        raise RuntimeError(
+            f"Sentinel-2 asset not found: {band_name}"
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
         )
 
 
@@ -367,10 +500,15 @@ def read_band(
         asset.href
     ) as src:
 
+<<<<<<< HEAD
         # ----------------------------------------------------
         # Convert Nagpur WGS84 bounding box
         # into Sentinel-2 raster CRS.
         # ----------------------------------------------------
+=======
+        # Convert Nagpur WGS84 bbox
+        # into the raster CRS.
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
         left, bottom, right, top = (
             transform_bounds(
@@ -383,14 +521,21 @@ def read_band(
                 NAGPUR_BBOX[1],
                 NAGPUR_BBOX[2],
                 NAGPUR_BBOX[3]
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
             )
         )
 
 
+<<<<<<< HEAD
         # ----------------------------------------------------
         # Create raster window
         # ----------------------------------------------------
+=======
+        # Create raster window.
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
         window = from_bounds(
 
@@ -410,9 +555,13 @@ def read_band(
         )
 
 
+<<<<<<< HEAD
         # ----------------------------------------------------
         # Read raster band
         # ----------------------------------------------------
+=======
+        # Read band.
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
         data = src.read(
             1,
@@ -422,9 +571,13 @@ def read_band(
         )
 
 
+<<<<<<< HEAD
         # ----------------------------------------------------
         # Transform of cropped raster
         # ----------------------------------------------------
+=======
+        # Transform of cropped raster.
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
         cropped_transform = (
             src.window_transform(
@@ -433,13 +586,18 @@ def read_band(
         )
 
 
+<<<<<<< HEAD
         # ----------------------------------------------------
         # Raster CRS
         # ----------------------------------------------------
+=======
+        # CRS of raster.
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
         raster_crs = src.crs
 
 
+<<<<<<< HEAD
         # ----------------------------------------------------
         # Sentinel-2 L2A scaling
         # ----------------------------------------------------
@@ -447,6 +605,11 @@ def read_band(
         data = (
             data / 10000.0
         )
+=======
+        # Sentinel-2 L2A scaling.
+
+        data = data / 10000.0
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 
         return (
@@ -457,6 +620,7 @@ def read_band(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 14. READ SENTINEL-2 BANDS
 # ============================================================
 
@@ -466,6 +630,13 @@ print("READING SENTINEL-2 BANDS")
 print("=" * 70)
 
 print()
+=======
+# 13. READ BANDS
+# ============================================================
+
+print()
+print("Reading Sentinel-2 bands...")
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 print("B02 - Blue")
 
@@ -496,6 +667,7 @@ B08, _, _ = (
 
 
 # ============================================================
+<<<<<<< HEAD
 # 15. CHECK BAND DIMENSIONS
 # ============================================================
 
@@ -525,6 +697,18 @@ print(
     "B08:",
     B08.shape
 )
+=======
+# 14. CHECK BAND DIMENSIONS
+# ============================================================
+
+print()
+print("Band dimensions:")
+
+print("B02:", B02.shape)
+print("B03:", B03.shape)
+print("B04:", B04.shape)
+print("B08:", B08.shape)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 
 if not (
@@ -535,13 +719,21 @@ if not (
 ):
 
     raise RuntimeError(
+<<<<<<< HEAD
         "B02, B03, B04 and B08 "
         "dimensions do not match."
+=======
+        "B02, B03, B04 and B08 dimensions do not match."
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     )
 
 
 # ============================================================
+<<<<<<< HEAD
 # 16. VALID PIXELS
+=======
+# 15. VALID PIXELS
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 valid_pixels = (
@@ -561,21 +753,31 @@ valid_pixels = (
     & (B04 >= 0)
 
     & (B08 >= 0)
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 )
 
 
 print()
+<<<<<<< HEAD
 
 print(
     "Valid 10m pixels:",
     int(
         valid_pixels.sum()
     )
+=======
+print(
+    "Valid 10m pixels:",
+    int(valid_pixels.sum())
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 )
 
 
 # ============================================================
+<<<<<<< HEAD
 # 17. CALCULATE NDVI
 # ============================================================
 
@@ -583,6 +785,13 @@ print()
 print("=" * 70)
 print("CALCULATING NDVI")
 print("=" * 70)
+=======
+# 16. CALCULATE NDVI
+# ============================================================
+
+print()
+print("Calculating NDVI...")
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 
 denominator = (
@@ -598,16 +807,23 @@ NDVI = np.full(
 
 
 safe_pixels = (
+<<<<<<< HEAD
 
     valid_pixels
 
     & (denominator != 0)
 
+=======
+    valid_pixels
+    &
+    (denominator != 0)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 )
 
 
 NDVI[safe_pixels] = (
 
+<<<<<<< HEAD
     (
         B08[safe_pixels]
         -
@@ -626,6 +842,21 @@ NDVI[safe_pixels] = (
 
 
 # Keep NDVI between -1 and +1.
+=======
+    B08[safe_pixels]
+    -
+    B04[safe_pixels]
+
+) / (
+
+    B08[safe_pixels]
+    +
+    B04[safe_pixels]
+)
+
+
+# Keep NDVI within valid range.
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 NDVI[
     (NDVI < -1)
@@ -634,6 +865,7 @@ NDVI[
 ] = np.nan
 
 
+<<<<<<< HEAD
 print()
 
 print(
@@ -642,11 +874,18 @@ print(
         np.isfinite(
             NDVI
         ).sum()
+=======
+print(
+    "Valid NDVI pixels:",
+    int(
+        np.isfinite(NDVI).sum()
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     )
 )
 
 
 # ============================================================
+<<<<<<< HEAD
 # 18. AGGREGATE TO APPROXIMATELY 100m
 # ============================================================
 
@@ -662,6 +901,18 @@ print("=" * 70)
 height, width = (
     NDVI.shape
 )
+=======
+# 17. AGGREGATE TO ~100m
+# ============================================================
+
+print()
+print(
+    "Aggregating 10m pixels into approximately 100m cells..."
+)
+
+
+height, width = NDVI.shape
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 
 new_height = (
@@ -681,25 +932,37 @@ B02 = B02[
     :new_width
 ]
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 B03 = B03[
     :new_height,
     :new_width
 ]
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 B04 = B04[
     :new_height,
     :new_width
 ]
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 B08 = B08[
     :new_height,
     :new_width
 ]
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 NDVI = NDVI[
     :new_height,
     :new_width
@@ -707,7 +970,11 @@ NDVI = NDVI[
 
 
 # ============================================================
+<<<<<<< HEAD
 # 19. BLOCK MEAN FUNCTION
+=======
+# 18. BLOCK MEAN FUNCTION
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 def block_mean(
@@ -715,10 +982,14 @@ def block_mean(
     factor
 ):
 
+<<<<<<< HEAD
     h, w = (
         array.shape
     )
 
+=======
+    h, w = array.shape
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
     reshaped = array.reshape(
 
@@ -729,7 +1000,10 @@ def block_mean(
         w // factor,
 
         factor
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     )
 
 
@@ -740,6 +1014,7 @@ def block_mean(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 20. CREATE 100m GRIDS
 # ============================================================
 
@@ -749,30 +1024,47 @@ print(
 )
 
 
+=======
+# 19. CREATE 100m GRIDS
+# ============================================================
+
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 B02_GRID = block_mean(
     B02,
     FACTOR
 )
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 B03_GRID = block_mean(
     B03,
     FACTOR
 )
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 B04_GRID = block_mean(
     B04,
     FACTOR
 )
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 B08_GRID = block_mean(
     B08,
     FACTOR
 )
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 NDVI_GRID = block_mean(
     NDVI,
     FACTOR
@@ -785,7 +1077,10 @@ grid_height, grid_width = (
 
 
 print()
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 print(
     "Spatial grid:",
     grid_height,
@@ -793,7 +1088,10 @@ print(
     grid_width
 )
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 print(
     "Spatial records:",
     grid_height * grid_width
@@ -801,6 +1099,7 @@ print(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 21. CREATE SPATIAL RECORDS
 # ============================================================
 
@@ -808,6 +1107,13 @@ print()
 print("=" * 70)
 print("CREATING SPATIAL CSV RECORDS")
 print("=" * 70)
+=======
+# 20. CREATE SPATIAL RECORDS
+# ============================================================
+
+print()
+print("Creating spatial CSV records...")
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 
 records = []
@@ -821,12 +1127,19 @@ for row in range(
         grid_width
     ):
 
+<<<<<<< HEAD
         ndvi_value = (
             NDVI_GRID[
                 row,
                 col
             ]
         )
+=======
+        ndvi_value = NDVI_GRID[
+            row,
+            col
+        ]
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 
         if not np.isfinite(
@@ -836,9 +1149,14 @@ for row in range(
             continue
 
 
+<<<<<<< HEAD
         # ----------------------------------------------------
         # Center of 100m cell
         # ----------------------------------------------------
+=======
+        # Center of the 100m cell
+        # in the original 10m raster.
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
         source_row = (
             row * FACTOR
@@ -852,9 +1170,14 @@ for row in range(
         )
 
 
+<<<<<<< HEAD
         # ----------------------------------------------------
         # Convert row/column to raster coordinates
         # ----------------------------------------------------
+=======
+        # Convert row/column to
+        # raster coordinates.
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
         x, y = xy(
 
@@ -865,6 +1188,7 @@ for row in range(
             source_col,
 
             offset="center"
+<<<<<<< HEAD
 
         )
 
@@ -872,6 +1196,17 @@ for row in range(
         # ----------------------------------------------------
         # Convert raster CRS to EPSG:4326
         # ----------------------------------------------------
+=======
+        )
+
+
+        # ====================================================
+        # IMPORTANT:
+        # Convert raster CRS -> EPSG:4326
+        #
+        # This is the corrected part.
+        # ====================================================
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
         longitude_list, latitude_list = (
             transform(
@@ -883,7 +1218,10 @@ for row in range(
                 [x],
 
                 [y]
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
             )
         )
 
@@ -892,12 +1230,16 @@ for row in range(
             longitude_list[0]
         )
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
         latitude = (
             latitude_list[0]
         )
 
 
+<<<<<<< HEAD
         # ----------------------------------------------------
         # Band values
         # ----------------------------------------------------
@@ -932,6 +1274,27 @@ for row in range(
                 col
             ]
         )
+=======
+        b02_value = B02_GRID[
+            row,
+            col
+        ]
+
+        b03_value = B03_GRID[
+            row,
+            col
+        ]
+
+        b04_value = B04_GRID[
+            row,
+            col
+        ]
+
+        b08_value = B08_GRID[
+            row,
+            col
+        ]
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 
         # ====================================================
@@ -969,10 +1332,13 @@ for row in range(
             )
 
 
+<<<<<<< HEAD
         # ====================================================
         # APPEND RECORD
         # ====================================================
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
         records.append({
 
             "Latitude":
@@ -1036,7 +1402,10 @@ for row in range(
             "Product":
                 "Sentinel-2 L2A",
 
+<<<<<<< HEAD
             # Actual satellite acquisition date.
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
             "Scene_Date":
                 SCENE_DATE,
 
@@ -1050,7 +1419,11 @@ for row in range(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 22. CREATE DATAFRAME
+=======
+# 21. CREATE DATAFRAME
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 df = pd.DataFrame(
@@ -1066,7 +1439,10 @@ if df.empty:
 
 
 print()
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 print(
     "Final spatial records:",
     len(df)
@@ -1074,7 +1450,11 @@ print(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 23. SAVE SPATIAL CSV
+=======
+# 22. SAVE SPATIAL CSV
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 # ============================================================
 
 df.to_csv(
@@ -1084,7 +1464,10 @@ df.to_csv(
 
 
 print()
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 print(
     "Spatial CSV saved:"
 )
@@ -1095,6 +1478,7 @@ print(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 24. CREATE SUMMARY
 # ============================================================
 
@@ -1104,6 +1488,11 @@ print("CREATING NDVI SUMMARY")
 print("=" * 70)
 
 
+=======
+# 23. CREATE SUMMARY
+# ============================================================
+
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 summary_df = pd.DataFrame({
 
     "Region": [
@@ -1171,12 +1560,18 @@ summary_df = pd.DataFrame({
     "Vegetation_Percentage": [
 
         (
+<<<<<<< HEAD
             df[
                 "NDVI"
             ] >= 0.30
         ).mean()
         * 100
 
+=======
+            df["NDVI"] >= 0.30
+        ).mean()
+        * 100
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     ],
 
     "Spatial_Records": [
@@ -1186,10 +1581,13 @@ summary_df = pd.DataFrame({
 })
 
 
+<<<<<<< HEAD
 # ============================================================
 # 25. SAVE SUMMARY CSV
 # ============================================================
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 summary_df.to_csv(
     SUMMARY_CSV,
     index=False
@@ -1197,7 +1595,10 @@ summary_df.to_csv(
 
 
 print()
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 print(
     "Summary CSV saved:"
 )
@@ -1208,6 +1609,7 @@ print(
 
 
 # ============================================================
+<<<<<<< HEAD
 # 26. CREATE NDVI PNG
 # ============================================================
 
@@ -1215,6 +1617,15 @@ print()
 print("=" * 70)
 print("CREATING NDVI PNG")
 print("=" * 70)
+=======
+# 24. CREATE NDVI PNG
+# ============================================================
+
+print()
+print(
+    "Creating NDVI PNG..."
+)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 
 plt.figure(
@@ -1231,7 +1642,10 @@ plt.imshow(
     vmin=-1,
 
     vmax=1
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 )
 
 
@@ -1250,7 +1664,10 @@ plt.xlabel(
     "100m Grid"
 )
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 plt.ylabel(
     "100m Grid"
 )
@@ -1266,13 +1683,17 @@ plt.savefig(
     dpi=300,
 
     bbox_inches="tight"
+<<<<<<< HEAD
 
+=======
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 )
 
 
 plt.close()
 
 
+<<<<<<< HEAD
 print()
 
 print(
@@ -1292,6 +1713,16 @@ print()
 print("=" * 70)
 print("                 NDVI COMPLETED")
 print("=" * 70)
+=======
+# ============================================================
+# 25. FINAL RESULTS
+# ============================================================
+
+print()
+print("=" * 60)
+print("              NDVI COMPLETED")
+print("=" * 60)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 
 print()
 
@@ -1301,23 +1732,35 @@ print(
 )
 
 print(
+<<<<<<< HEAD
     "Product:",
     "Sentinel-2 L2A"
 )
 
 print(
     "Selected Scene Date:",
+=======
+    "Scene date:",
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     SCENE_DATE
 )
 
 print(
+<<<<<<< HEAD
     "Cloud Cover:",
+=======
+    "Cloud cover:",
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     CLOUD_COVER,
     "%"
 )
 
 print(
+<<<<<<< HEAD
     "Spatial Records:",
+=======
+    "Spatial records:",
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
     len(df)
 )
 
@@ -1346,9 +1789,17 @@ print(
 )
 
 print()
+<<<<<<< HEAD
 
 print(
     "Spatial CSV:"
+=======
+print("FILES CREATED")
+
+print()
+print(
+    "1. Spatial CSV:"
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 )
 
 print(
@@ -1356,9 +1807,14 @@ print(
 )
 
 print()
+<<<<<<< HEAD
 
 print(
     "Summary CSV:"
+=======
+print(
+    "2. Summary CSV:"
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 )
 
 print(
@@ -1366,9 +1822,14 @@ print(
 )
 
 print()
+<<<<<<< HEAD
 
 print(
     "NDVI PNG:"
+=======
+print(
+    "3. NDVI PNG:"
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe
 )
 
 print(
@@ -1376,7 +1837,20 @@ print(
 )
 
 print()
+<<<<<<< HEAD
 
 print("=" * 70)
 print("NDVI SCRIPT FINISHED SUCCESSFULLY")
 print("=" * 70)
+=======
+print(
+    "Google Earth Engine: NOT USED"
+)
+
+print(
+    "GeoJSON boundary: NOT REQUIRED"
+)
+
+print()
+print("=" * 60)
+>>>>>>> a08cd372948d939a206e50cc2dd246593a4ff2fe

@@ -1,0 +1,16 @@
+pandas
+numpy
+scikit-learn
+matplotlib
+seaborn
+geopandas
+rasterio
+folium
+streamlit
+plotly
+osmnx
+pystac-client
+planetary-computer
+shapely
+pyproj
+joblib
